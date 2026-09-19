@@ -4,9 +4,9 @@ This project is a secure web-based file encryption and management system develop
 
 ## Scope
 
-The most important security objective is to ensure that uploaded files cannot be accessed or recovered by unauthorised users. The application will therefore implement server-side encryption, per-user access control, secure authentication and session management, secure file handling, input validation, CSRF protection and XSS defences.
+The most important security objective is to ensure that uploaded files cannot be accessed or recovered by unauthorised users. The application will therefore implement server-side encryption along with the security features listed in [Security](#security).
 
-The system is designed as a server-side web application. This minimizes the client-side attack surface and allows security-sensitive operations to remain under server-side control. It also simplifies the design significantly.
+The system is designed as a server-side web application. This minimizes the client-side attack surface and allows security-sensitive operations to remain under server-side control.
 
 Some other decisions were made to limit the scope of this project:
 
@@ -45,6 +45,7 @@ Some other decisions were made to limit the scope of this project:
 - Encrypt files server-side.
 - Store encrypted files outside the web root.
 - List files belonging to the current user.
+- Check that stored files have not been modified.
 - Download decrypted files.
 - Delete files.
 
@@ -83,4 +84,8 @@ Every file operation must additionally perform server-side ownership verificatio
 
 ## Usage Instructions
 
-_TODO_...
+Docker will probably be set up later.
+
+Currently:
+
+``dotnet run --project App/WebApp/``
