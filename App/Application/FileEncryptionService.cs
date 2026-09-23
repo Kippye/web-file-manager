@@ -1,11 +1,16 @@
 using System.Security.Cryptography;
+using System.Text;
 using Application.Contracts;
 using DTO;
+using Microsoft.Extensions.Configuration;
 
 namespace Application;
 
-public class FileEncryptionService(TempEncryptionKey encryptionKey) : IFileEncryptionService
+public class FileEncryptionService(IConfiguration configuration) : IFileEncryptionService
 {
+    // TEMP - will be received from secrets and probably not stored in memory
+    private readonly byte[] Key = Encoding.UTF8.GetBytes(configuration.GetValue<string>("TempEncryptionKey")!);
+
     public async Task<Result<EncryptedFile>> EncryptAsync(byte[] content)
     {
         if (!AesGcm.IsSupported)
@@ -19,17 +24,13 @@ public class FileEncryptionService(TempEncryptionKey encryptionKey) : IFileEncry
         var nonceSize = AesGcm.NonceByteSizes.MaxSize;
         var tagSize = AesGcm.TagByteSizes.MaxSize;
 
-        // TEMP - will be received from secrets
-        // 256-bit key though
-        var key = encryptionKey.Key;
-
         var encryptedFile = new EncryptedFile(
             contentSize: content.Length,
             nonceSize: nonceSize,
             tagSize: tagSize
         );
 
-        var aesGcm = new AesGcm(encryptionKey.Key, tagSize);
+        var aesGcm = new AesGcm(Key, tagSize);
 
         try
         {
@@ -50,7 +51,7 @@ public class FileEncryptionService(TempEncryptionKey encryptionKey) : IFileEncry
 
     public async Task<Result<byte[]>> DecryptAsync(EncryptedFile encryptedFile)
     {
-        var aesGcm = new AesGcm(encryptionKey.Key, AesGcm.TagByteSizes.MaxSize);
+        var aesGcm = new AesGcm(Key, AesGcm.TagByteSizes.MaxSize);
 
         var plaintext = new byte[encryptedFile.Content.Length];
         try

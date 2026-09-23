@@ -1,20 +1,10 @@
 using Application;
 using Application.Contracts;
 using Infrastructure.EF;
-using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
-
-// TODO: Probably just apply these settings to the file upload page specifically using attributes.
-// [RequestSizeLimit(...)]
-// [RequestFormLimits(MultipartBodyLengthLimit = 268435456)]
-builder.Services.Configure<FormOptions>(options =>
-{
-    // Set the limit to 256 MB
-    options.MultipartBodyLengthLimit = 268435456;
-});
 
 // Add services to the container.
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
@@ -26,7 +16,6 @@ builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.Requ
     .AddEntityFrameworkStores<AppDbContext>();
 builder.Services.AddControllersWithViews();
 
-builder.Services.AddSingleton<TempEncryptionKey>();
 builder.Services.AddSingleton<IFileEncryptionService, FileEncryptionService>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 
@@ -53,7 +42,7 @@ app.MapStaticAssets();
 
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}")
+    pattern: "{controller=Home}/{action=Index}/{id:guid?}")
     .WithStaticAssets();
 
 app.MapRazorPages()

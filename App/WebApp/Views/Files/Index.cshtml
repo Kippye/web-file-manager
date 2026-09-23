@@ -1,0 +1,49 @@
+﻿@model IEnumerable<WebApp.Models.FileInfoViewModel>
+@{
+    ViewData["Title"] = "Files";
+}
+
+<div class="text-center">
+    <h1 class="display-4">Your files</h1>
+    <p><a asp-action="Upload"">Upload some files</a></p>
+    <table class=" table">
+        <thead>
+            <th>
+                Name
+            </th>
+            <th>
+                Size
+            </th>
+            <th>
+                Uploaded
+            </th>
+            <th>
+
+            </th>
+        </thead>
+        <tbody>
+            @foreach (var fileInfo in Model)
+            {
+                <tr>
+                    <td>
+                        @fileInfo.FileName
+                    </td>
+                    <td>
+                        @fileInfo.FileSize.AsFileSize()
+                    </td>
+                    <td>
+                        @fileInfo.UploadedAt
+                    </td>
+                    <td>
+                        <a asp-action="Download" asp-route-id=@fileInfo.Id.ToString() class="btn btn-primary">
+                            Download
+                        </a>
+                        <a asp-action="Delete" asp-route-id=@fileInfo.Id.ToString() class="btn btn-danger">
+                            Delete
+                        </a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

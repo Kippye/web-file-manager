@@ -22,7 +22,13 @@
 
   <ItemGroup>
     <ProjectReference Include="../Application.Contracts/Application.Contracts.csproj" />
+    <ProjectReference Include="../Application/Application.csproj" />
     <ProjectReference Include="../DTO/DTO.csproj" />
+    <ProjectReference Include="../Infrastructure.EF/Infrastructure.EF.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Views/Files/" />
   </ItemGroup>
 
 </Project>
