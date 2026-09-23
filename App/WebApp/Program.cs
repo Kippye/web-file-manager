@@ -1,7 +1,9 @@
+using Application;
+using Application.Contracts;
+using Infrastructure.EF;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using WebApp.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,13 +18,17 @@ builder.Services.Configure<FormOptions>(options =>
 
 // Add services to the container.
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
+builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(connectionString));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = true)
-    .AddEntityFrameworkStores<ApplicationDbContext>();
+    .AddEntityFrameworkStores<AppDbContext>();
 builder.Services.AddControllersWithViews();
+
+builder.Services.AddSingleton<TempEncryptionKey>();
+builder.Services.AddSingleton<IFileEncryptionService, FileEncryptionService>();
+builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 
 var app = builder.Build();
 
