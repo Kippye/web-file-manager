@@ -19,12 +19,12 @@ public class FileStorageService(IHostEnvironment hostEnv, AppDbContext dbContext
 
         // TODO: Per-user directories? Would make it a bit harder for malicious files to access other users' files
 
-        // Generate and use random safe file name + extension
-        var filePathInStorage = Guid.NewGuid() + Path.GetExtension(fileInfo.FileName);
+        // Generate and use random safe file name
+        // TODO: Central configuration for file extension
+        var filePathInStorage = Path.ChangeExtension(Guid.NewGuid().ToString(), ".bin");
 
         var addedFileEntry = dbContext.StoredFiles.Add(new StoredFile()
         {
-            AppUserId = Guid.Empty, // TEMP
             FileSize = fileInfo.FileSize,
             OriginalFileName = fileInfo.FileName,
             Nonce = file.Nonce,

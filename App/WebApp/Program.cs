@@ -1,18 +1,28 @@
 using Application;
 using Application.Contracts;
+using Domain.Identity;
+using Infrastructure.Contracts;
 using Infrastructure.EF;
-using Microsoft.AspNetCore.Identity;
+using Infrastructure.EF.OperationProcessing;
 using Microsoft.EntityFrameworkCore;
+using WebApp;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IUserResolverService, UserResolverService>();
+
+builder.Services.AddScoped<IEntityActionStrategy, AuditEntityCreatedStrategy>();
+builder.Services.AddScoped<IEntityActionStrategy, AuditEntityUpdatedStrategy>();
+builder.Services.AddScoped<IDataOperationProcessor, DataOperationProcessor>();
+
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(connectionString));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
-builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = true)
+builder.Services.AddDefaultIdentity<AppUser>(options => options.SignIn.RequireConfirmedAccount = true)
     .AddEntityFrameworkStores<AppDbContext>();
 builder.Services.AddControllersWithViews();
 

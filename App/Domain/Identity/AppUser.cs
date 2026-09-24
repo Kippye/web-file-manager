@@ -5,5 +5,5 @@ namespace Domain.Identity;
 
 public class AppUser : IdentityUser<Guid>, IBaseEntity
 {
-
+    public ICollection<StoredFile> StoredFiles { get; set; } = [];
 }

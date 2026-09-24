@@ -1,17 +1,19 @@
 using Application.Contracts;
 using DTO;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WebApp.Models;
 
 namespace WebApp.Controllers
 {
     // [RequestSizeLimit(...)]
+    [Authorize]
     [RequestFormLimits(MultipartBodyLengthLimit = 134217728, ValueCountLimit = 3)]
     public class FilesController(
-                IFileEncryptionService fileEncryptionService,
-                IFileStorageService fileStorageService,
-                ILogger<HomeController> logger
-            ) : Controller
+        IFileEncryptionService fileEncryptionService,
+        IFileStorageService fileStorageService,
+        ILogger<HomeController> logger
+    ) : Controller
     {
         // List current user's files
         public async Task<IActionResult> Index()
@@ -38,6 +40,7 @@ namespace WebApp.Controllers
             return View();
         }
 
+        // Upload file(s) via form
         [HttpPost]
         public async Task<IActionResult> Upload(FileUploadViewModel vm)
         {

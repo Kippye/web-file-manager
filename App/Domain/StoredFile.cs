@@ -1,13 +1,14 @@
 using Domain.Base;
+using Domain.Identity;
 
 namespace Domain;
 
-public class StoredFile : BaseEntity, IAppUserOwned
+public class StoredFile : BaseEntity
 {
     /// <summary>
-    /// ID of the user who owns this file.
+    /// The user who created and owns this file.
     /// </summary>
-    public Guid AppUserId { get; set; }
+    public AppUser? OwnerUser { get; set; }
     /// <summary>
     /// Original file name of the uploaded file (including extension).
     /// </summary>
