@@ -1,20 +1,55 @@
+using System.Reflection;
 using Application.Contracts;
 using DTO;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using WebApp.Models;
 
 namespace WebApp.Controllers
 {
-    // [RequestSizeLimit(...)]
     [Authorize]
-    [RequestFormLimits(MultipartBodyLengthLimit = 134217728, ValueCountLimit = 3)]
+    [RequestSizeLimit(134217728)]
+    [RequestFormLimits(MultipartBodyLengthLimit = 134217728, ValueCountLimit = 4)]
     public class FilesController(
         IFileEncryptionService fileEncryptionService,
         IFileStorageService fileStorageService,
         ILogger<HomeController> logger
     ) : Controller
     {
+        private async Task<Result> ProcessUploadedFile(IFormFile file)
+        {
+            Result<EncryptedFile>? encryptionResult = null;
+            using (var formFileStream = file.OpenReadStream())
+            {
+                var fileBytes = new byte[formFileStream.Length];
+                // TODO: Handle end-of-stream exception
+                await formFileStream.ReadExactlyAsync(fileBytes);
+                encryptionResult = await fileEncryptionService.EncryptAsync(fileBytes);
+            }
+            if (!encryptionResult.IsSuccess)
+            {
+                logger.LogError(string.Join(". ", encryptionResult.Errors.Select(e => e.Message)));
+                return Result.Failure(encryptionResult.Errors);
+            }
+
+            var fileUploadInfo = new FileUploadInfoDto()
+            {
+                FileName = file.FileName,
+                ContentType = file.ContentType,
+                FileSize = file.Length,
+            };
+            var storeEncryptedResult = await fileStorageService.StoreFileAsync(fileUploadInfo, encryptionResult.Value!);
+            if (!storeEncryptedResult.IsSuccess)
+            {
+                logger.LogError(string.Join(". ", storeEncryptedResult.Errors.Select(e => e.Message)));
+                return Result.Failure(storeEncryptedResult.Errors);
+            }
+
+            return Result.Success();
+        }
+
         // List current user's files
         public async Task<IActionResult> Index()
         {
@@ -46,41 +81,36 @@ namespace WebApp.Controllers
         {
             if (!ModelState.IsValid)
             {
+                var requestSizeLimitAttr = typeof(FilesController).GetCustomAttribute<RequestSizeLimitAttribute>(true)! as IRequestSizeLimitMetadata;
+                var requestFormLimitsAttr = typeof(FilesController).GetCustomAttribute<RequestFormLimitsAttribute>(true)!;
+
+                foreach (var entry in ModelState)
+                {
+                    if (string.IsNullOrEmpty(entry.Key) && entry.Value.Errors.Count > 0)
+                    {
+                        entry.Value.Errors.Clear();
+                        entry.Value.Errors.Add(
+                            new ModelError(
+                                $"An upload can contain at most {Math.Max(0, requestFormLimitsAttr.ValueCountLimit - 1)} files and be {LongFileSizeExtensions.AsFileSize((long)requestSizeLimitAttr.MaxRequestBodySize!)} total."
+                            )
+                        );
+                    }
+                }
                 return View(vm);
             }
 
             // TODO: Initial validation: size, type, extension, etc.
+            // Validate all files before any are processed!
 
-            Result<EncryptedFile>? encryptionResult = null;
-            using (var formFileStream = vm.File.OpenReadStream())
+            foreach (IFormFile file in vm.Files)
             {
-                var fileBytes = new byte[formFileStream.Length];
-                // TODO: Handle end-of-stream exception
-                await formFileStream.ReadExactlyAsync(fileBytes);
-                encryptionResult = await fileEncryptionService.EncryptAsync(fileBytes);
-            }
-            if (encryptionResult is null)
-            {
-                logger.LogError("Failed to read uploaded file.");
-                return View(vm);
-            }
-            if (!encryptionResult.IsSuccess)
-            {
-                logger.LogError(string.Join(". ", encryptionResult.Errors.Select(e => e.Message)));
-                return View(vm);
-            }
+                var processResult = await ProcessUploadedFile(file);
 
-            var fileUploadInfo = new FileUploadInfoDto()
-            {
-                FileName = vm.File.FileName,
-                ContentType = vm.File.ContentType,
-                FileSize = vm.File.Length,
-            };
-            var storeEncryptedResult = await fileStorageService.StoreFileAsync(fileUploadInfo, encryptionResult.Value!);
-            if (!storeEncryptedResult.IsSuccess)
-            {
-                logger.LogError(string.Join(". ", storeEncryptedResult.Errors.Select(e => e.Message)));
-                return BadRequest(); // TODO: Return correct result; show error messages
+                if (!processResult.IsSuccess)
+                {
+                    // TODO: Handle specific causes
+                    return BadRequest();
+                }
             }
 
             return RedirectToAction("Index");

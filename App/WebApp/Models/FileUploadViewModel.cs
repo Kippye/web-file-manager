@@ -5,5 +5,5 @@ namespace WebApp.Models;
 public class FileUploadViewModel
 {
     [Required]
-    public IFormFile File { get; set; } = default!;
+    public List<IFormFile> Files { get; set; } = default!;
 }

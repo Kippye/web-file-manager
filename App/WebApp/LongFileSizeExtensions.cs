@@ -23,12 +23,9 @@ public static class LongFileSizeExtensions
     /// <returns>Filesize and quantifier formatted as a string.</returns>
     public static string AsFileSize(this long bytes)
     {
-        Console.WriteLine(bytes);
         double pow = Math.Floor((bytes > 0 ? Math.Log(bytes) : 0) / Math.Log(1024));
         pow = Math.Min(pow, Units.Count - 1);
-        Console.WriteLine(pow);
         double value = (double)bytes / Math.Pow(1024, pow);
-        Console.WriteLine(Units[(int)pow]);
         return value.ToString(pow == 0 ? "F0" : "F" + PRECISION.ToString()) + " " + Units[Math.Max(0, (int)pow)];
     }
 }
