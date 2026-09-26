@@ -50,23 +50,28 @@ namespace WebApp.Controllers
             return Result.Success();
         }
 
-        // List current user's files
-        public async Task<IActionResult> Index()
+        private async Task<IEnumerable<FileInfoViewModel>> CreateViewModel()
         {
             List<FileInfoDto> fileList = await fileStorageService.GetFileListAsync();
 
-            return View(
-                fileList.Select(f =>
-                    new FileInfoViewModel()
-                    {
-                        Id = f.Id,
-                        ContentType = f.ContentType,
-                        FileName = f.FileName,
-                        FileSize = f.FileSize,
-                        UploadedAt = f.UploadedAt.ToLocalTime().ToString()
-                    }
-                )
+            return fileList.Select(f =>
+                new FileInfoViewModel()
+                {
+                    Id = f.Id,
+                    ContentType = f.ContentType,
+                    FileName = f.FileName,
+                    FileSize = f.FileSize,
+                    UploadedAt = f.UploadedAt.ToLocalTime().ToString()
+                }
             );
+        }
+
+        // List current user's files
+        public async Task<IActionResult> Index()
+        {
+            var viewModel = await CreateViewModel();
+
+            return View(viewModel);
         }
 
         // Upload page
@@ -124,7 +129,9 @@ namespace WebApp.Controllers
             var getFileResult = await fileStorageService.GetFileAsync(id);
             if (!getFileResult.IsSuccess)
             {
-                return NotFound();
+                logger.LogError(string.Join(". ", getFileResult.Errors.Select(e => e.Message)));
+                ModelState.AddModelError(string.Empty, "File not found.");
+                return View("Index", await CreateViewModel());
             }
 
             var decryptResult = await fileEncryptionService.DecryptAsync(
@@ -134,7 +141,8 @@ namespace WebApp.Controllers
             {
                 logger.LogError(string.Join(". ", decryptResult.Errors.Select(e => e.Message)));
                 // TODO: Return correct result
-                return BadRequest();
+                ModelState.AddModelError(string.Empty, $"File '{getFileResult.Value!.Info.FileName}' has been modified and can't be decrypted.");
+                return View("Index", await CreateViewModel());
             }
 
             var fileInfo = getFileResult.Value!.Info;
@@ -148,8 +156,10 @@ namespace WebApp.Controllers
 
             if (!deleteResult.IsSuccess)
             {
+                logger.LogError(string.Join(". ", deleteResult.Errors.Select(e => e.Message)));
                 // TODO: Return correct result
-                return NotFound();
+                ModelState.AddModelError(string.Empty, "File not found.");
+                return View("Index", await CreateViewModel());
             }
 
             return RedirectToAction("Index");
