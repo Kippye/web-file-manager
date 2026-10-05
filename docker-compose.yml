@@ -1,0 +1,17 @@
+services:
+  aspnet:
+    build: .
+    ports:
+      - "8090:8080"
+    logging:
+      options:
+        max-size: 10m
+        max-file: "3"
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Development"
+    volumes:
+      - aspnet-files:/app/FileStorage
+
+volumes: 
+    aspnet-files:

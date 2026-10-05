@@ -1,0 +1,13 @@
+.git
+*.md
+docker-compose.yml
+.dockerignore
+**/bin  
+**/obj  
+**/bin\\
+**/bin\\*/
+**/out  
+**/.vscode  
+**/.vs  
+.dotnet  
+.Microsoft.DotNet.ImageBuilder

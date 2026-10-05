@@ -84,8 +84,4 @@ Every file operation must additionally perform server-side ownership verificatio
 
 ## Usage Instructions
 
-Docker will probably be set up later.
-
-Currently:
-
-``dotnet run --project App/WebApp/``
+``docker compose up``
