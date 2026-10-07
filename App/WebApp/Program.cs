@@ -31,6 +31,38 @@ builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 
 var app = builder.Build();
 
+// TODO: Move
+using var serviceScope = app.Services
+     .GetRequiredService<IServiceScopeFactory>()
+     .CreateScope();
+
+using var context = serviceScope.ServiceProvider.GetRequiredService<AppDbContext>();
+var fileStorageService = serviceScope.ServiceProvider.GetRequiredService<IFileStorageService>();
+
+if (app.Configuration.GetValue<bool>("DataInitialization:ClearFiles"))
+{
+    app.Logger.LogWarning("ClearFiles - Not implemented");
+    await fileStorageService.DeleteAllFilesAsync();
+}
+
+if (app.Configuration.GetValue<bool>("DataInitialization:DropDatabase"))
+{
+    app.Logger.LogWarning("DropDatabase");
+    context.Database.EnsureDeleted();
+}
+
+if (app.Configuration.GetValue<bool>("DataInitialization:CreateDatabase"))
+{
+    app.Logger.LogInformation("CreateDatabase");
+    context.Database.EnsureCreated();
+}
+
+if (app.Configuration.GetValue<bool>("DataInitialization:MigrateDatabase"))
+{
+    app.Logger.LogInformation("MigrateDatabase");
+    context.Database.Migrate();
+}
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {

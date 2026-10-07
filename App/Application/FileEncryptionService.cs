@@ -8,8 +8,7 @@ namespace Application;
 
 public class FileEncryptionService(IConfiguration configuration) : IFileEncryptionService
 {
-    // TEMP - will be received from secrets and probably not stored in memory
-    private readonly byte[] Key = Encoding.UTF8.GetBytes(configuration.GetValue<string>("TempEncryptionKey")!);
+    private byte[] Key { get => Encoding.UTF8.GetBytes(configuration.GetValue<string>("EncryptionKey")!); }
 
     public async Task<Result<EncryptedFile>> EncryptAsync(byte[] content)
     {
@@ -18,6 +17,14 @@ public class FileEncryptionService(IConfiguration configuration) : IFileEncrypti
             return Result<EncryptedFile>.Failure(
                 EApplicationErrorCode.InvalidOperation,
                 "The current platform does not support the AES-GCM algorithm."
+            );
+        }
+        var key = Key;
+        if (key.Length < 32)
+        {
+            return Result<EncryptedFile>.Failure(
+                EApplicationErrorCode.CryptographyError,
+                "The encryption key must be 32 bytes or longer."
             );
         }
         // TODO: Explicitly use the actual values specified in docs (even though they happen to be the same)
@@ -30,7 +37,7 @@ public class FileEncryptionService(IConfiguration configuration) : IFileEncrypti
             tagSize: tagSize
         );
 
-        var aesGcm = new AesGcm(Key, tagSize);
+        var aesGcm = new AesGcm(key, tagSize);
 
         try
         {
