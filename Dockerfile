@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/sdk:latest AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /app
 
 COPY App/*.slnx .
@@ -26,11 +26,18 @@ COPY App/Infrastructure.EF/. ./Infrastructure.EF/
 COPY App/WebApp/. ./WebApp/
 
 WORKDIR /app/WebApp
-RUN dotnet publish -c Release -o out
-
+RUN dotnet publish --no-restore -c Release -o out
 
 FROM mcr.microsoft.com/dotnet/aspnet:latest AS runtime
-EXPOSE 8080
+
+EXPOSE 8080 443
 WORKDIR /app
-COPY --from=build /app/WebApp/out ./
+
+RUN mkdir -p /home/ubuntu/.microsoft/usersecrets /home/ubuntu/.aspnet/DataProtection-Keys && \
+    chown -R 1000:1000 /home/ubuntu
+
+RUN mkdir /app/data && chown 1000:1000 /app/data
+
+COPY --from=build --chown=1000:1000 /app/WebApp/out ./
+
 ENTRYPOINT ["dotnet", "WebApp.dll"]

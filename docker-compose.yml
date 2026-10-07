@@ -2,16 +2,27 @@ services:
   aspnet:
     build: .
     ports:
-      - "8090:8080"
+      - "8090:8090"
+      - "8091:8091"
+    user: "1000:1000"
     logging:
       options:
         max-size: 10m
         max-file: "3"
-    restart: unless-stopped
+    # restart: unless-stopped
     environment:
       ASPNETCORE_ENVIRONMENT: "Development"
+      ASPNETCORE_HTTP_PORTS: "8090"
+      ASPNETCORE_HTTPS_PORTS: "8091"
+      ASPNETCORE_Kestrel__Certificates__Default__Path: "/https/WebApp.pfx"
+    env_file: ".env"
     volumes:
       - aspnet-files:/app/FileStorage
+      - aspnet-data:/app/data
+      - data-protection-keys:/home/ubuntu/.aspnet/DataProtection-Keys
+      - /home/kip/.aspnet/https:/https:ro
 
 volumes: 
     aspnet-files:
+    aspnet-data:
+    data-protection-keys:

@@ -2,6 +2,12 @@
 
 This project is a secure web-based file encryption and management system developed using ASP.NET Core MVC.
 
+- [Scope](#scope)
+- [Technology stack](#technology-stack)
+- [Planned features](#planned-features)
+- [Planned application routes](#planned-application-routes)
+- [Usage instructions](#usage-instructions)
+
 ## Scope
 
 The most important security objective is to ensure that uploaded files cannot be accessed or recovered by unauthorised users. The application will therefore implement server-side encryption along with the security features listed in [Security](#security).
@@ -84,4 +90,59 @@ Every file operation must additionally perform server-side ownership verificatio
 
 ## Usage Instructions
 
-``docker compose up``
+These instructions are currently pretty annoying and not fully tested.
+
+### Generate TLS development certificate
+
+**Install the .NET SDK (10.0).**
+
+Create development certificate and trust it - choose a path to save it:
+
+`dotnet dev-certs https -ep /path-to-cert/WebApp.pfx -p SomePass && dotnet dev-certs https --trust`
+
+Edit `docker-compose.yml`:
+
+```dockerfile
+volumes:
+    ...
+    # The directory passed to dev-certs
+    - /path-to-cert:/https:ro
+```
+
+### Secrets
+
+#### Environment variables
+
+Copy `.env.example` to `.env` and set the values.
+
+[Skip to launch!](#launch)
+
+#### Secret Manager
+
+_The Secret Manager only works in Development_.
+
+`cd App/ && dotnet user-secrets -p WebApp/WebApp.csproj init`
+
+Store the cert password from before:
+
+`dotnet user-secrets -p WebApp/WebApp.csproj set "Kestrel:Certificates:Default:Password" "SomePass"`
+
+Store an encryption key:
+
+`dotnet user-secrets -p WebApp/WebApp.csproj set "EncryptionKey" "some32bytesLongStringLikeThisOne"`
+
+Edit `docker-compose.yml`:
+
+```dockerfile
+volumes:
+    ...
+    # Linux: /home/user/.microsoft/usersecrets
+    # Windows: %APPDATA%/Microsoft/UserSecrets
+    - /path-to-usersecrets:/home/ubuntu/.microsoft/usersecrets:ro
+```
+
+### Launch
+
+`docker compose up`
+
+The app will be up at http://localhost:8090 / https://localhost:8091.
