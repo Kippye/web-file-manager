@@ -171,4 +171,54 @@ public class FileStorageService(IHostEnvironment hostEnv, AppDbContext dbContext
         await dbContext.SaveChangesAsync();
         return Result.Success();
     }
+
+    public async Task<Result> DeleteUserFilesAsync(Guid userId)
+    {
+        throw new NotImplementedException();
+    }
+
+    public async Task<Result> DeleteAllFilesAsync()
+    {
+        if (!Directory.Exists(StorageDir))
+        {
+            // Storage dir doesn't exist so no files exist - done
+            return Result.Success();
+        }
+
+        List<(Guid, Result)> FailedDeletes = [];
+        HashSet<Guid> SuccessfulDeletes = [];
+
+        // TODO NOTE: Is it better to loop over DB and delete files or loop over files and delete from DB?
+        foreach (var fileInfo in dbContext.StoredFiles)
+        {
+            var deleteResult = await DeleteFileAsync(fileInfo.Id);
+            if (!deleteResult.IsSuccess)
+            {
+                FailedDeletes.Add((fileInfo.Id, deleteResult));
+            }
+            else
+            {
+                SuccessfulDeletes.Add(fileInfo.Id);
+            }
+        }
+
+        dbContext.StoredFiles.RemoveRange(
+            dbContext.StoredFiles.Where(f => SuccessfulDeletes.Contains(f.Id)).AsEnumerable()
+        );
+        await dbContext.SaveChangesAsync();
+
+        // If any deletes failed - fail with a result containing errors for each file
+        if (FailedDeletes.Count > 0)
+        {
+            return Result.Failure(
+                FailedDeletes.Select(f => new ApplicationError()
+                {
+                    Code = EApplicationErrorCode.UnknownError,
+                    Message = $"Failed to delete file with ID {f.Item1}."
+                })
+            );
+        }
+
+        return Result.Success();
+    }
 }

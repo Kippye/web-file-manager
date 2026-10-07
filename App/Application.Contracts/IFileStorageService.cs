@@ -37,4 +37,14 @@ public interface IFileStorageService
     /// <param name="id">The file's ID</param>
     /// <returns></returns>
     Task<Result> DeleteFileAsync(Guid id);
+    /// <summary>
+    /// DANGER: Delete all of an user's files in storage.
+    /// </summary>
+    /// <returns></returns>
+    Task<Result> DeleteUserFilesAsync(Guid userId);
+    /// <summary>
+    /// DANGER: Delete all files in storage.
+    /// </summary>
+    /// <returns></returns>
+    Task<Result> DeleteAllFilesAsync();
 }
