@@ -6,6 +6,7 @@ using Infrastructure.EF;
 using Infrastructure.EF.OperationProcessing;
 using Microsoft.EntityFrameworkCore;
 using WebApp;
+using WebApp.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -89,5 +90,8 @@ app.MapControllerRoute(
 
 app.MapRazorPages()
    .WithStaticAssets();
+
+// Custom default response headers middleware
+app.UseResponseHeaders();
 
 app.Run();
