@@ -1,13 +1,14 @@
 using Application.Contracts;
 using Domain;
 using DTO;
+using Infrastructure.Contracts;
 using Infrastructure.EF;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 
 namespace Application;
 
-public class FileStorageService(IHostEnvironment hostEnv, AppDbContext dbContext) : IFileStorageService
+public class FileStorageService(IHostEnvironment hostEnv, IUserResolverService userResolverService, AppDbContext dbContext) : IFileStorageService
 {
     private readonly string StorageDir = Path.Combine(hostEnv.ContentRootPath, "FileStorage");
 
@@ -23,6 +24,7 @@ public class FileStorageService(IHostEnvironment hostEnv, AppDbContext dbContext
         // TODO: Central configuration for file extension
         var filePathInStorage = Path.ChangeExtension(Guid.NewGuid().ToString(), ".bin");
 
+        // Note: Owner user is automatically set at EF-level from HTTP context
         var addedFileEntry = dbContext.StoredFiles.Add(new StoredFile()
         {
             FileSize = fileInfo.FileSize,
@@ -58,6 +60,7 @@ public class FileStorageService(IHostEnvironment hostEnv, AppDbContext dbContext
     public async Task<List<FileInfoDto>> GetFileListAsync()
     {
         return await dbContext.StoredFiles
+            .Where(f => f.CreatedById.HasValue && f.CreatedById.Equals(userResolverService.GetCurrentUserGuid()))
             .OrderByDescending(f => f.CreatedAt)
             .Select(f =>
                 new FileInfoDto()
@@ -74,7 +77,11 @@ public class FileStorageService(IHostEnvironment hostEnv, AppDbContext dbContext
 
     public async Task<Result<FileDto>> GetFileAsync(Guid id)
     {
-        var fileMetadata = await dbContext.StoredFiles.FindAsync(id);
+        var fileMetadata = await dbContext.StoredFiles.FirstOrDefaultAsync(f =>
+            f.Id.Equals(id) &&
+            f.CreatedById.HasValue &&
+            f.CreatedById.Equals(userResolverService.GetCurrentUserGuid())
+        );
 
         if (fileMetadata is null)
         {
@@ -135,7 +142,11 @@ public class FileStorageService(IHostEnvironment hostEnv, AppDbContext dbContext
 
     public async Task<Result> DeleteFileAsync(Guid id)
     {
-        var fileMetadata = await dbContext.StoredFiles.FindAsync(id);
+        var fileMetadata = await dbContext.StoredFiles.FirstOrDefaultAsync(f =>
+            f.Id.Equals(id) &&
+            f.CreatedById != null &&
+            f.CreatedById.Equals(userResolverService.GetCurrentUserGuid())
+        );
 
         if (fileMetadata is null)
         {
