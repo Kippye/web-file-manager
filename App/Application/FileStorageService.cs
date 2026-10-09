@@ -5,10 +5,11 @@ using Infrastructure.Contracts;
 using Infrastructure.EF;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace Application;
 
-public class FileStorageService(IHostEnvironment hostEnv, IUserResolverService userResolverService, AppDbContext dbContext) : IFileStorageService
+public class FileStorageService(IHostEnvironment hostEnv, IUserResolverService userResolverService, ILogger<FileStorageService> logger, AppDbContext dbContext) : IFileStorageService
 {
     private readonly string StorageDir = Path.Combine(hostEnv.ContentRootPath, "FileStorage");
 
@@ -53,6 +54,8 @@ public class FileStorageService(IHostEnvironment hostEnv, IUserResolverService u
         }
 
         await dbContext.SaveChangesAsync();
+
+        logger.LogInformation("Stored file {Path}.", filePathInStorage);
 
         return Result.Success(addedFileEntry.Entity.Id);
     }
@@ -190,42 +193,67 @@ public class FileStorageService(IHostEnvironment hostEnv, IUserResolverService u
 
     public async Task<Result> DeleteAllFilesAsync()
     {
+        logger.LogInformation("Deleting all files and file metadata.");
+
         if (!Directory.Exists(StorageDir))
         {
             // Storage dir doesn't exist so no files exist - done
             return Result.Success();
         }
 
-        List<(Guid, Result)> FailedDeletes = [];
-        HashSet<Guid> SuccessfulDeletes = [];
+        List<(Guid, string)> FailedDeletes = [];
+        HashSet<Guid> FailedFileIds = [];
+        HashSet<string> SuccessfulDeletes = [];
 
-        // TODO NOTE: Is it better to loop over DB and delete files or loop over files and delete from DB?
-        foreach (var fileInfo in dbContext.StoredFiles)
+        foreach (string filePath in Directory.EnumerateFiles(StorageDir))
         {
-            var deleteResult = await DeleteFileAsync(fileInfo.Id);
-            if (!deleteResult.IsSuccess)
+            try
             {
-                FailedDeletes.Add((fileInfo.Id, deleteResult));
+                logger.LogDebug("Deleting file at '{Path}'.", filePath);
+                File.Delete(filePath);
+                SuccessfulDeletes.Add(filePath);
             }
-            else
+            catch (Exception e)
             {
-                SuccessfulDeletes.Add(fileInfo.Id);
+                // TEMP: Currently, file name == file ID
+                var fileId = Guid.Parse(Path.GetFileNameWithoutExtension(filePath));
+                FailedDeletes.Add((fileId, e.Message));
+                FailedFileIds.Add(fileId);
             }
         }
 
-        dbContext.StoredFiles.RemoveRange(
-            dbContext.StoredFiles.Where(f => SuccessfulDeletes.Contains(f.Id)).AsEnumerable()
-        );
-        await dbContext.SaveChangesAsync();
+        // Now we delete every file metadata entry
+        // Except files that we failed to delete (might be useful to know who uploaded them and when)
+        var dbDeleteCount = await dbContext.StoredFiles.IgnoreQueryFilters()
+            .Where(f => !FailedFileIds.Contains(f.Id))
+            .ExecuteDeleteAsync();
+
+        logger.LogInformation("Deleted {FileCount} files and {EntryCount} DB entries.", SuccessfulDeletes.Count, dbDeleteCount);
 
         // If any deletes failed - fail with a result containing errors for each file
         if (FailedDeletes.Count > 0)
         {
+            if (FailedDeletes.Count <= 10)
+            {
+                FailedDeletes.ForEach(fail =>
+                {
+                    logger.LogWarning(
+                        "Failed to delete file at '{FilePath}'; error: '{Error}'.",
+                        fail.Item1,
+                        fail.Item2
+                    );
+                });
+            }
+            else
+            {
+                logger.LogWarning("Failed to delete '{FailCount}' files.", FailedDeletes.Count);
+            }
+
             return Result.Failure(
                 FailedDeletes.Select(f => new ApplicationError()
                 {
                     Code = EApplicationErrorCode.UnknownError,
-                    Message = $"Failed to delete file with ID {f.Item1}."
+                    Message = $"Failed to delete file at '{f.Item1}'."
                 })
             );
         }

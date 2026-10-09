@@ -19,10 +19,8 @@ services:
     volumes:
       - aspnet-files:/app/FileStorage
       - aspnet-data:/app/data
-      - data-protection-keys:/home/ubuntu/.aspnet/DataProtection-Keys
       - /home/kip/.aspnet/https:/https:ro
 
 volumes: 
     aspnet-files:
     aspnet-data:
-    data-protection-keys:

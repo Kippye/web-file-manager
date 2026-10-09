@@ -4,6 +4,7 @@ using Domain.Identity;
 using Infrastructure.Contracts;
 using Infrastructure.EF;
 using Infrastructure.EF.OperationProcessing;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using WebApp;
 using WebApp.Middleware;
@@ -17,6 +18,10 @@ builder.Services.AddScoped<IUserResolverService, UserResolverService>();
 builder.Services.AddScoped<IEntityActionStrategy, AuditEntityCreatedStrategy>();
 builder.Services.AddScoped<IEntityActionStrategy, AuditEntityUpdatedStrategy>();
 builder.Services.AddScoped<IDataOperationProcessor, DataOperationProcessor>();
+
+builder.Services.AddDataProtection()
+    .SetApplicationName("FileMan")
+    .PersistKeysToDbContext<AppDbContext>();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -42,8 +47,8 @@ var fileStorageService = serviceScope.ServiceProvider.GetRequiredService<IFileSt
 
 if (app.Configuration.GetValue<bool>("DataInitialization:ClearFiles"))
 {
-    app.Logger.LogWarning("ClearFiles - Not implemented");
-    await fileStorageService.DeleteAllFilesAsync();
+    app.Logger.LogWarning("ClearFiles");
+    fileStorageService.DeleteAllFilesAsync().Wait();
 }
 
 if (app.Configuration.GetValue<bool>("DataInitialization:DropDatabase"))
@@ -52,6 +57,7 @@ if (app.Configuration.GetValue<bool>("DataInitialization:DropDatabase"))
     context.Database.EnsureDeleted();
 }
 
+// NOTE: Only for testing (bypasses migrations to create full schema)
 if (app.Configuration.GetValue<bool>("DataInitialization:CreateDatabase"))
 {
     app.Logger.LogInformation("CreateDatabase");

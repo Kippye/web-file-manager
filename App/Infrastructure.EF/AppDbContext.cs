@@ -2,14 +2,17 @@
 using Domain.Identity;
 using Infrastructure.Contracts;
 using Infrastructure.EF.OperationProcessing;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.EF;
 
-public class AppDbContext : IdentityDbContext<AppUser, AppRole, Guid>
+public class AppDbContext : IdentityDbContext<AppUser, AppRole, Guid>, IDataProtectionKeyContext
 {
     public DbSet<StoredFile> StoredFiles { get; set; }
+
+    public DbSet<DataProtectionKey> DataProtectionKeys { get; set; }
 
     private readonly IDataOperationProcessor _dataOperationProcessor;
     private readonly IUserResolverService _userResolverService;
