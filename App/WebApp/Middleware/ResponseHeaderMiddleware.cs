@@ -11,6 +11,7 @@ public class ResponseHeaderMiddleware(RequestDelegate next)
                 // Content-Security-Policy
                 // * By default, only load resources that are same-origin with the document
                 // * <object> and <embed> are blocked
+                // Allow images from self and embedded (for bootstrap SVGs)
                 // * Allow inline CSS (otherwise some styling breaks - maybe TEMP)
                 // * Don't allow the document to be embedded (clickjacking prevention)
                 // * Upgrade to HTTPS (complements Strict-Transport-Security header)
@@ -18,7 +19,7 @@ public class ResponseHeaderMiddleware(RequestDelegate next)
                 // The nonce could easily just be a scoped service that generates a random GUID.
                 context.Response.Headers.Append(
                     "Content-Security-Policy",
-                    "default-src 'self'; object-src 'none'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; upgrade-insecure-requests"
+                    "default-src 'self'; object-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; upgrade-insecure-requests"
                 );
                 return Task.FromResult(0);
             });

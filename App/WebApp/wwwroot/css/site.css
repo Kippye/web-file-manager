@@ -29,3 +29,25 @@ body {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
   text-align: start;
 }
+
+
+.button-download-icon {
+  --bs-btn-font-size: 1rem;
+}
+
+.button-delete-icon {
+  --bs-btn-font-size: 1rem;
+}
+
+.file-table {
+  table-layout: fixed;
+}
+
+.file-table .filename {
+  width: 1%;
+}
+
+.file-table .fit {
+  width: 1%;
+  white-space: nowrap;
+}
