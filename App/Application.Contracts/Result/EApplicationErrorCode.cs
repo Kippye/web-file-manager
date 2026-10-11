@@ -2,8 +2,14 @@ namespace Application.Contracts;
 
 public enum EApplicationErrorCode
 {
+    // Cryptography errors
     CryptographyError,
     AuthenticationTagError,
+
+    // IO errors
+    IOError,
+    FilePermissionError,
+    DatabaseError,
 
     // Validation errors
     ValidationError,

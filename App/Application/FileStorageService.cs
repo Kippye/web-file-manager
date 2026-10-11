@@ -16,13 +16,37 @@ public class FileStorageService(IHostEnvironment hostEnv, IUserResolverService u
     public async Task<Result<Guid>> StoreFileAsync(FileUploadInfoDto fileInfo, EncryptedFile file)
     {
         // Ensure the storage directory exists
-        // TODO: Handle its exceptions
-        Directory.CreateDirectory(StorageDir);
+        try
+        {
+            Directory.CreateDirectory(StorageDir);
+        }
+        catch (UnauthorizedAccessException e)
+        {
+            logger.LogError("Not authorized to create file storage directory. Error:" + e.Message);
+            return Result<Guid>.Failure(EApplicationErrorCode.FilePermissionError, "Not authorized to create storage directory.");
+        }
+        catch (Exception e)
+        {
+            logger.LogError("Exception when creating file storage directory. Error:" + e.Message);
+            return Result<Guid>.Failure(EApplicationErrorCode.IOError, "Exception when creating storage directory.");
+        }
 
         // Ensure the user subdirectory exists
         var userDirName = userResolverService.GetCurrentUserGuid()!.Value.ToString();
-        // TODO: Handle its exceptions
-        Directory.CreateDirectory(Path.Combine(StorageDir, userDirName));
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(StorageDir, userDirName));
+        }
+        catch (UnauthorizedAccessException e)
+        {
+            logger.LogError("Not authorized to create directory for user '{UserID}' in storage. Error:" + e.Message, userDirName);
+            return Result<Guid>.Failure(EApplicationErrorCode.FilePermissionError, "Not authorized to create user directory.");
+        }
+        catch (Exception e)
+        {
+            logger.LogError("Exception when creating directory for user '{UserID}' in storage. Error:" + e.Message, userDirName);
+            return Result<Guid>.Failure(EApplicationErrorCode.IOError, "Exception when creating user directory.");
+        }
 
         // Generate and use random safe file name
         // TODO: Central configuration for file extension
@@ -47,19 +71,27 @@ public class FileStorageService(IHostEnvironment hostEnv, IUserResolverService u
                 await stream.WriteAsync(file.Content, 0, file.Content.Length);
             }
         }
-        catch
+        catch (Exception e)
         {
+            logger.LogError("Failed to create file at '{FilePath}'. Error: " + e.Message, fileAbsolutePath);
             // TODO: Handle each File.Create exception
             return Result<Guid>.Failure(
-                EApplicationErrorCode.UnknownError,
+                EApplicationErrorCode.IOError,
                 "Failed to create file."
             );
         }
 
-        await dbContext.SaveChangesAsync();
+        try
+        {
+            await dbContext.SaveChangesAsync();
+        }
+        catch (Exception e)
+        {
+            logger.LogError("Error when saving metadata for file at '{FilePath}'. Error: " + e.Message, fileAbsolutePath);
+            return Result<Guid>.Failure(EApplicationErrorCode.DatabaseError, "Failed to save file metadata.");
+        }
 
         logger.LogInformation("Stored file {Path}.", fileRelativePath);
-
         return Result.Success(addedFileEntry.Entity.Id);
     }
 
@@ -91,18 +123,17 @@ public class FileStorageService(IHostEnvironment hostEnv, IUserResolverService u
 
         if (fileMetadata is null)
         {
+            // TODO: Probably log here, somebody might be trying to access unauthorized files
             return Result<FileDto>.Failure(
                 EApplicationErrorCode.ResourceNotFound,
                 "File metadata not found."
             );
-            // TODO: Probably log here, somebody might be trying to access unauthorized files
         }
 
         if (!Directory.Exists(StorageDir))
         {
-            // TODO: Return correct error code
             return Result<FileDto>.Failure(
-                EApplicationErrorCode.UnknownError,
+                EApplicationErrorCode.IOError,
                 "File storage directory does not exist."
             );
         }
@@ -128,16 +159,27 @@ public class FileStorageService(IHostEnvironment hostEnv, IUserResolverService u
                     File = new EncryptedFile(streamLength, fileMetadata.Nonce, fileMetadata.AuthenticationTag)
                 };
                 // TODO: Handle end-of-stream exception
-                await fileStream.ReadExactlyAsync(file.File.Content);
+                try
+                {
+                    await fileStream.ReadExactlyAsync(file.File.Content);
+                }
+                catch (EndOfStreamException e)
+                {
+                    logger.LogError("Stream from file at '{FilePath}' ended unexpectedly. Error:" + e.Message, filePath);
+                    return Result<FileDto>.Failure(EApplicationErrorCode.IOError, "File stream ended unexpectedly.");
+                }
                 return Result.Success(file);
             }
         }
-        catch
+        catch (UnauthorizedAccessException e)
         {
-            return Result<FileDto>.Failure(
-                EApplicationErrorCode.UnknownError,
-                "Failed to read file."
-            );
+            logger.LogError("Not authorized to read file at '{FilePath}'. Error:" + e.Message, filePath);
+            return Result<FileDto>.Failure(EApplicationErrorCode.FilePermissionError, "Not authorized to read file.");
+        }
+        catch (Exception e)
+        {
+            logger.LogError("Exception when reading file from '{FilePath}'. Error:" + e.Message, filePath);
+            return Result<FileDto>.Failure(EApplicationErrorCode.IOError, "Failed to read file.");
         }
     }
 
@@ -156,18 +198,17 @@ public class FileStorageService(IHostEnvironment hostEnv, IUserResolverService u
 
         if (fileMetadata is null)
         {
+            // TODO: Probably log here, somebody might be trying to access unauthorized files
             return Result.Failure(
                 EApplicationErrorCode.ResourceNotFound,
                 "File metadata not found."
             );
-            // TODO: Probably log here, somebody might be trying to access unauthorized files
         }
 
         if (!Directory.Exists(StorageDir))
         {
-            // TODO: Return correct error code
             return Result.Failure(
-                EApplicationErrorCode.UnknownError,
+                EApplicationErrorCode.IOError,
                 "File storage directory does not exist."
             );
         }
@@ -180,12 +221,28 @@ public class FileStorageService(IHostEnvironment hostEnv, IUserResolverService u
         {
             File.Delete(filePath);
         }
-        catch
+        catch (UnauthorizedAccessException e)
         {
-            return Result.Failure(EApplicationErrorCode.UnknownError, "Failed to delete file");
+            logger.LogError("Not authorized to delete file at '{FilePath}'. Error:" + e.Message, filePath);
+            return Result.Failure(EApplicationErrorCode.FilePermissionError, "Not authorized to delete file.");
+        }
+        catch (Exception e)
+        {
+            logger.LogError("Exception when deleting file at '{FilePath}'. Error:" + e.Message, filePath);
+            return Result.Failure(EApplicationErrorCode.IOError, "Failed to delete file.");
         }
 
-        await dbContext.SaveChangesAsync();
+        try
+        {
+            await dbContext.SaveChangesAsync();
+        }
+        catch (Exception e)
+        {
+            logger.LogError("Error when removing metadata for file at '{FilePath}'. Error: " + e.Message, filePath);
+            return Result.Failure(EApplicationErrorCode.DatabaseError, "Failed to remove file metadata.");
+        }
+
+        logger.LogInformation("Deleted file at '{FilePath}", filePath);
         return Result.Success();
     }
 
