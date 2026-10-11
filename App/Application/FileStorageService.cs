@@ -19,11 +19,14 @@ public class FileStorageService(IHostEnvironment hostEnv, IUserResolverService u
         // TODO: Handle its exceptions
         Directory.CreateDirectory(StorageDir);
 
-        // TODO: Per-user directories? Would make it a bit harder for malicious files to access other users' files
+        // Ensure the user subdirectory exists
+        var userDirName = userResolverService.GetCurrentUserGuid()!.Value.ToString();
+        // TODO: Handle its exceptions
+        Directory.CreateDirectory(Path.Combine(StorageDir, userDirName));
 
         // Generate and use random safe file name
         // TODO: Central configuration for file extension
-        var filePathInStorage = Path.ChangeExtension(Guid.NewGuid().ToString(), ".bin");
+        var fileRelativePath = Path.Combine(userDirName, Path.ChangeExtension(Guid.NewGuid().ToString(), ".bin"));
 
         // Note: Owner user is automatically set at EF-level from HTTP context
         var addedFileEntry = dbContext.StoredFiles.Add(new StoredFile()
@@ -32,14 +35,14 @@ public class FileStorageService(IHostEnvironment hostEnv, IUserResolverService u
             OriginalFileName = fileInfo.FileName,
             Nonce = file.Nonce,
             AuthenticationTag = file.AuthenticationTag,
-            StoragePath = filePathInStorage
+            StoragePath = fileRelativePath
         });
 
-        var filePath = Path.Combine(StorageDir, filePathInStorage);
+        var fileAbsolutePath = Path.Combine(StorageDir, fileRelativePath);
 
         try
         {
-            await using (var stream = File.Create(filePath))
+            await using (var stream = File.Create(fileAbsolutePath))
             {
                 await stream.WriteAsync(file.Content, 0, file.Content.Length);
             }
@@ -55,7 +58,7 @@ public class FileStorageService(IHostEnvironment hostEnv, IUserResolverService u
 
         await dbContext.SaveChangesAsync();
 
-        logger.LogInformation("Stored file {Path}.", filePathInStorage);
+        logger.LogInformation("Stored file {Path}.", fileRelativePath);
 
         return Result.Success(addedFileEntry.Entity.Id);
     }
@@ -205,8 +208,25 @@ public class FileStorageService(IHostEnvironment hostEnv, IUserResolverService u
         HashSet<Guid> FailedFileIds = [];
         HashSet<string> SuccessfulDeletes = [];
 
-        foreach (string filePath in Directory.EnumerateFiles(StorageDir))
+        // NOTE: This loops recursively over every .bin file in the file storage
+        // Maybe it would be better to just loop through all users and delete their files with DeleteUserFilesAsync
+        foreach (string filePath in Directory.EnumerateFiles(
+            StorageDir,
+            "*.bin",
+            new EnumerationOptions()
+            {
+                RecurseSubdirectories = true,
+                ReturnSpecialDirectories = false
+            }
+        ))
         {
+            // Ensure that the path points to a *file*, not a directory
+            if (!File.Exists(filePath))
+            {
+                logger.LogDebug("Path '{Path}' was enumerated but is not an existing file.", filePath);
+
+                continue;
+            }
             try
             {
                 logger.LogDebug("Deleting file at '{Path}'.", filePath);

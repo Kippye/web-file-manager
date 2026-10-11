@@ -27,7 +27,7 @@ public class FileEncryptionService(IConfiguration configuration) : IFileEncrypti
                 "The encryption key must be 32 bytes or longer."
             );
         }
-        // TODO: Explicitly use the actual values specified in docs (even though they happen to be the same)
+
         var nonceSize = AesGcm.NonceByteSizes.MaxSize;
         var tagSize = AesGcm.TagByteSizes.MaxSize;
 
