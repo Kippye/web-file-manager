@@ -25,8 +25,8 @@ builder.Logging.AddJsonConsole(options =>
 // Add services to the container.
 // NOTE: AppLogger uses IUserResolverService, both use HttpContextAccessor.
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddScoped<IUserResolverService, UserResolverService>();
-builder.Services.AddScoped(typeof(IAppLogger<>), typeof(AppLogger<>));
+builder.Services.AddSingleton<IUserResolverService, UserResolverService>();
+builder.Services.AddSingleton(typeof(IAppLogger<>), typeof(AppLogger<>));
 
 builder.Services.AddScoped<IEntityActionStrategy, AuditEntityCreatedStrategy>();
 builder.Services.AddScoped<IEntityActionStrategy, AuditEntityUpdatedStrategy>();
@@ -45,7 +45,7 @@ builder.Services.AddDefaultIdentity<AppUser>(options => options.SignIn.RequireCo
     .AddEntityFrameworkStores<AppDbContext>();
 builder.Services.AddControllersWithViews();
 
-builder.Services.AddScoped<IFileEncryptionService, FileEncryptionService>();
+builder.Services.AddSingleton<IFileEncryptionService, FileEncryptionService>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 
 var app = builder.Build();

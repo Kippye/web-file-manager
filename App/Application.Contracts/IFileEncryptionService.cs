@@ -13,8 +13,8 @@ public interface IFileEncryptionService
     /// <summary>
     /// Get key and decrypt the encrypted file with it.
     /// </summary>
-    /// <param name="fileId"></param>
     /// <param name="encryptedFile"></param>
+    /// <param name="fileId">ID of the file being decrypted. Only used for logging.</param>
     /// <returns>Decrypted content</returns>
-    Task<Result<byte[]>> DecryptAsync(EncryptedFile encryptedFile);
+    Task<Result<byte[]>> DecryptAsync(EncryptedFile encryptedFile, Guid? fileId);
 }

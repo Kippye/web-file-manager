@@ -2,31 +2,41 @@ using System.Security.Cryptography;
 using System.Text;
 using Application.Contracts;
 using DTO;
+using Infrastructure.Contracts;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace Application;
 
-public class FileEncryptionService(IConfiguration configuration, ILogger<FileEncryptionService> logger) : IFileEncryptionService
+public class FileEncryptionService(IConfiguration configuration, IAppLogger<FileEncryptionService> logger) : IFileEncryptionService
 {
+    private static readonly EventId EncryptFileEvent = new(100, "File encrypted");
+    private static readonly EventId DecryptFileEvent = new(101, "File decrypted");
+
     private byte[] Key { get => Encoding.UTF8.GetBytes(configuration.GetValue<string>("EncryptionKey")!); }
 
     public async Task<Result<EncryptedFile>> EncryptAsync(byte[] content)
     {
+        static Result<EncryptedFile> GetGenericFailure(EApplicationErrorCode errorCode) => Result<EncryptedFile>.Failure(errorCode, "Failed to encrypt.");
+
         if (!AesGcm.IsSupported)
         {
-            return Result<EncryptedFile>.Failure(
-                EApplicationErrorCode.InvalidOperation,
+            logger.LogCritical(
+                EncryptFileEvent,
+                EventOutcome.Failure,
                 "The current platform does not support the AES-GCM algorithm."
             );
+            return GetGenericFailure(EApplicationErrorCode.InvalidOperation);
         }
         var key = Key;
         if (key.Length < 32)
         {
-            return Result<EncryptedFile>.Failure(
-                EApplicationErrorCode.CryptographyError,
-                "The encryption key must be 32 bytes or longer."
+            logger.LogCritical(
+                EncryptFileEvent,
+                EventOutcome.Failure,
+                "The encryption key is too short to encrypt with. It must be 32 bytes or longer."
             );
+            return GetGenericFailure(EApplicationErrorCode.CryptographyError);
         }
 
         var nonceSize = AesGcm.NonceByteSizes.MaxSize;
@@ -49,22 +59,24 @@ public class FileEncryptionService(IConfiguration configuration, ILogger<FileEnc
                 tag: encryptedFile.AuthenticationTag
             );
         }
-        catch (ArgumentException e)
+        catch (ArgumentException exception)
         {
-            logger.LogError("AES encrypt argument error. Error: " + e.Message);
-            return Result<EncryptedFile>.Failure(EApplicationErrorCode.CryptographyError, "Failed to encrypt.");
+            logger.LogError(EncryptFileEvent, EventOutcome.Failure, exception, "AES-GCM encrypt argument exception.");
+            return GetGenericFailure(EApplicationErrorCode.CryptographyError);
         }
-        catch (CryptographicException e)
+        catch (CryptographicException exception)
         {
-            logger.LogError("Failed to encrypt file. Error: " + e.Message);
-            return Result<EncryptedFile>.Failure(EApplicationErrorCode.CryptographyError, "Failed to encrypt.");
+            logger.LogError(EncryptFileEvent, EventOutcome.Failure, exception, "Failed to encrypt file.");
+            return GetGenericFailure(EApplicationErrorCode.CryptographyError);
         }
 
+        logger.LogInformation(EncryptFileEvent, EventOutcome.Success, "Encrypted file.");
         return Result.Success(encryptedFile);
     }
 
-    public async Task<Result<byte[]>> DecryptAsync(EncryptedFile encryptedFile)
+    public async Task<Result<byte[]>> DecryptAsync(EncryptedFile encryptedFile, Guid? fileId)
     {
+        static Result<byte[]> GetGenericFailure(EApplicationErrorCode errorCode) => Result<byte[]>.Failure(errorCode, "Failed to decrypt.");
 
         var plaintext = new byte[encryptedFile.Content.Length];
         try
@@ -78,26 +90,38 @@ public class FileEncryptionService(IConfiguration configuration, ILogger<FileEnc
                 plaintext: plaintext
             );
         }
-        catch (ArgumentException e)
+        catch (ArgumentException exception)
         {
-            logger.LogError("AES decrypt argument error. Error: " + e.Message);
-            return Result<byte[]>.Failure(EApplicationErrorCode.CryptographyError, "Failed to decrypt.");
+            logger.LogError(
+                DecryptFileEvent,
+                EventOutcome.Failure,
+                exception,
+                "AES decrypt argument exception when decrypting file with ID '{FileId}'.",
+                fileId
+            );
+            return GetGenericFailure(EApplicationErrorCode.CryptographyError);
         }
-        catch (AuthenticationTagMismatchException e)
+        catch (AuthenticationTagMismatchException exception)
         {
-            logger.LogError("Authentication tag mismatch when decrypting. The file might have been modified! Error: " + e.Message);
-
+            logger.LogError(
+                DecryptFileEvent,
+                EventOutcome.Failure,
+                exception,
+                "Authentication tag mismatch when decrypting file with ID '{FileId}'. The file might have been modified!",
+                fileId
+            );
             return Result<byte[]>.Failure(
                 EApplicationErrorCode.AuthenticationTagError,
-                "File has been modified."
+                "File has been modified and can't be decrypted."
             );
         }
-        catch (CryptographicException e)
+        catch (CryptographicException exception)
         {
-            logger.LogError("Failed to decrypt file. Error: " + e.Message);
-            return Result<byte[]>.Failure(EApplicationErrorCode.CryptographyError, "Failed to decrypt.");
+            logger.LogError(DecryptFileEvent, EventOutcome.Failure, exception, "Failed to decrypt file with ID '{FileId}'.", fileId);
+            return GetGenericFailure(EApplicationErrorCode.CryptographyError);
         }
 
+        logger.LogInformation(DecryptFileEvent, EventOutcome.Success, "Decrypted file with ID '{FileId}'.", fileId);
         return Result.Success(plaintext);
     }
 }

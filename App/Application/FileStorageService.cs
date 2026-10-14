@@ -11,36 +11,32 @@ namespace Application;
 
 public class FileStorageService(
     IHostEnvironment hostEnv,
-    IUserResolverService userResolverService,
     IAppLogger<FileStorageService> logger,
     AppDbContext dbContext
 ) : IFileStorageService
 {
-    internal static EventId WriteFileEvent = new(100, "File written");
-    internal static EventId ReadFileEvent = new(101, "File read");
-    // internal static EventId UpdateFileEvent = new(102, "File updated");
-    internal static EventId DeleteFileEvent = new(103, "File deleted");
-    // internal static EventId DeleteUserFilesEvent = new(104, "User files deleted");
-    internal static EventId DeleteAllFilesEvent = new(104, "All files deleted");
+    private static readonly EventId WriteFileEvent = new(100, "File written");
+    private static readonly EventId ReadFileEvent = new(101, "File read");
+    private static readonly EventId DeleteFileEvent = new(103, "File deleted");
+    private static readonly EventId DeleteAllFilesEvent = new(104, "All files deleted");
 
     private readonly string StorageDir = Path.Combine(hostEnv.ContentRootPath, "FileStorage");
 
-    private static void LogFileStore(IAppLogger<FileStorageService> logger, LogLevel logLevel, EventOutcome? outcome, string message, string? filePath = default!, Guid? fileId = default!, Exception? exception = default!)
+    private bool AssertStorageDirExists(EventId eventId)
     {
-        logger.Log(logLevel, WriteFileEvent, outcome, exception, message + " Path={FilePath} FileId={FileId}", filePath, fileId);
+        if (!Directory.Exists(StorageDir))
+        {
+            logger.LogError(
+                eventId,
+                EventOutcome.Failure,
+                "File storage directory does not exist."
+            );
+            return false;
+        }
+        return true;
     }
 
-    private static void LogFileRead(IAppLogger<FileStorageService> logger, LogLevel logLevel, EventOutcome? outcome, string message, string? filePath = default!, Guid? fileId = default!, Exception? exception = default!)
-    {
-        logger.Log(logLevel, ReadFileEvent, outcome, exception, message + " Path={FilePath} FileId={FileId}", filePath, fileId);
-    }
-
-    private static void LogFileDelete(IAppLogger<FileStorageService> logger, LogLevel logLevel, EventOutcome? outcome, string message, string? filePath = default!, Guid? fileId = default!, Exception? exception = default!)
-    {
-        logger.Log(logLevel, DeleteFileEvent, outcome, exception, message + " Path={FilePath} FileId={FileId}", filePath, fileId);
-    }
-
-    public async Task<Result<Guid>> StoreFileAsync(FileUploadInfoDto fileInfo, EncryptedFile file)
+    public async Task<Result<Guid>> StoreFileAsync(FileUploadInfoDto fileInfo, EncryptedFile file, Guid userId)
     {
         static Result<Guid> GetGenericFailure(EApplicationErrorCode errorCode) => Result<Guid>.Failure(errorCode, "Failed to store file.");
 
@@ -49,60 +45,32 @@ public class FileStorageService(
         {
             Directory.CreateDirectory(StorageDir);
         }
-        catch (UnauthorizedAccessException e)
+        catch (UnauthorizedAccessException exception)
         {
-            LogFileStore(
-                logger,
-                LogLevel.Error,
-                EventOutcome.Failure,
-                "File permission error when creating file storage directory.",
-                filePath: StorageDir,
-                exception: e
-            );
+            logger.LogError(WriteFileEvent, EventOutcome.Failure, exception, "File permission error when creating file storage directory at '{FilePath}'.", StorageDir);
             return GetGenericFailure(EApplicationErrorCode.FilePermissionError);
         }
-        catch (Exception e)
+        catch (Exception exception)
         {
-            LogFileStore(
-                logger,
-                LogLevel.Error,
-                EventOutcome.Failure,
-                "Exception when creating file storage directory.",
-                filePath: StorageDir,
-                exception: e
-            );
+            logger.LogError(WriteFileEvent, EventOutcome.Failure, exception, "Exception when creating file storage directory at '{FilePath}'.", StorageDir);
             return GetGenericFailure(EApplicationErrorCode.IOError);
         }
 
         // Ensure the user subdirectory exists
-        string userDirName = userResolverService.GetCurrentUserGuid()!.Value.ToString();
+        string userDirName = userId.ToString();
         string userDirPath = Path.Combine(StorageDir, userDirName);
         try
         {
             Directory.CreateDirectory(userDirPath);
         }
-        catch (UnauthorizedAccessException e)
+        catch (UnauthorizedAccessException exception)
         {
-            LogFileStore(
-                logger,
-                LogLevel.Error,
-                EventOutcome.Failure,
-                "File permission error when creating user directory in storage.",
-                filePath: userDirPath,
-                exception: e
-            );
+            logger.LogError(WriteFileEvent, EventOutcome.Failure, exception, "File permission error when creating user directory in storage at '{FilePath}'.", userDirPath);
             return GetGenericFailure(EApplicationErrorCode.FilePermissionError);
         }
-        catch (Exception e)
+        catch (Exception exception)
         {
-            LogFileStore(
-                logger,
-                LogLevel.Error,
-                EventOutcome.Failure,
-                "Exception when creating user directory in storage.",
-                filePath: userDirPath,
-                exception: e
-            );
+            logger.LogError(WriteFileEvent, EventOutcome.Failure, exception: exception, "Exception when creating user directory in storage at '{FilePath}'.", userDirPath);
             return GetGenericFailure(EApplicationErrorCode.IOError);
         }
 
@@ -128,16 +96,9 @@ public class FileStorageService(
                 await stream.WriteAsync(file.Content, 0, file.Content.Length);
             }
         }
-        catch (Exception e)
+        catch (Exception exception)
         {
-            LogFileStore(
-                logger,
-                LogLevel.Error,
-                EventOutcome.Failure,
-                "Failed to create file.",
-                filePath: fileAbsolutePath,
-                exception: e
-            );
+            logger.LogError(WriteFileEvent, EventOutcome.Failure, exception: exception, "Failed to create file at '{FilePath}'.", fileAbsolutePath);
             // TODO: Handle each File.Create exception
             return GetGenericFailure(EApplicationErrorCode.IOError);
         }
@@ -146,34 +107,20 @@ public class FileStorageService(
         {
             await dbContext.SaveChangesAsync();
         }
-        catch (Exception e)
+        catch (Exception exception)
         {
-            LogFileStore(
-                logger,
-                LogLevel.Error,
-                EventOutcome.Failure,
-                "Failed to save file metadata",
-                filePath: fileAbsolutePath,
-                exception: e
-            );
+            logger.LogError(WriteFileEvent, EventOutcome.Failure, exception: exception, "Failed to save file metadata for file at '{FilePath}'.", fileAbsolutePath);
             return GetGenericFailure(EApplicationErrorCode.DatabaseError);
         }
 
-        LogFileStore(
-            logger,
-            LogLevel.Information,
-            EventOutcome.Success,
-            "Stored file.",
-            filePath: fileAbsolutePath,
-            fileId: addedFileEntry.Entity.Id
-        );
+        logger.LogInformation(WriteFileEvent, EventOutcome.Success, "Stored file at '{FilePath}' with ID '{FileId}'.", fileAbsolutePath, addedFileEntry.Entity.Id);
         return Result.Success(addedFileEntry.Entity.Id);
     }
 
-    public async Task<List<FileInfoDto>> GetFileListAsync()
+    public async Task<List<FileInfoDto>> GetFileListAsync(Guid userId)
     {
         return await dbContext.StoredFiles
-            .Where(f => f.CreatedById.HasValue && f.CreatedById.Equals(userResolverService.GetCurrentUserGuid()))
+            .Where(f => f.CreatedById.HasValue && f.CreatedById.Equals(userId))
             .OrderByDescending(f => f.CreatedAt)
             .Select(f =>
                 new FileInfoDto()
@@ -188,14 +135,14 @@ public class FileStorageService(
             .ToListAsync();
     }
 
-    public async Task<Result<FileDto>> GetFileAsync(Guid id)
+    public async Task<Result<FileDto>> GetFileAsync(Guid id, Guid userId)
     {
         static Result<FileDto> GetGenericFailure(EApplicationErrorCode errorCode) => Result<FileDto>.Failure(errorCode, "Failed to read file.");
 
         var fileMetadata = await dbContext.StoredFiles.FirstOrDefaultAsync(f =>
             f.Id.Equals(id) &&
             f.CreatedById.HasValue &&
-            f.CreatedById.Equals(userResolverService.GetCurrentUserGuid())
+            f.CreatedById.Equals(userId)
         );
 
         if (fileMetadata is null)
@@ -206,25 +153,12 @@ public class FileStorageService(
                 f => f.Id.Equals(id)
             );
 
-            LogFileRead(
-                logger,
-                LogLevel.Error,
-                unfilteredFileMetadata is null ? EventOutcome.NotFound : EventOutcome.Denied,
-                unfilteredFileMetadata is null ? "File metadata not found." : "Access to file metadata not authorized.",
-                fileId: id
-            );
+            logger.LogError(ReadFileEvent, unfilteredFileMetadata is null ? EventOutcome.NotFound : EventOutcome.Denied, "File metadata not found for file with ID '{FileId}'.", id);
             return GetGenericFailure(EApplicationErrorCode.ResourceNotFound);
         }
 
-        if (!Directory.Exists(StorageDir))
+        if (!AssertStorageDirExists(ReadFileEvent))
         {
-            LogFileRead(
-                logger,
-                LogLevel.Error,
-                EventOutcome.Failure,
-                "File storage directory does not exist.",
-                fileId: id
-            );
             return GetGenericFailure(EApplicationErrorCode.IOError);
         }
 
@@ -251,85 +185,60 @@ public class FileStorageService(
                 {
                     await fileStream.ReadExactlyAsync(file.File.Content);
                 }
-                catch (EndOfStreamException e)
+                catch (EndOfStreamException exception)
                 {
-                    LogFileRead(
-                        logger,
-                        LogLevel.Error,
-                        EventOutcome.Failure,
-                        "Stream from file ended unexpectedly.",
-                        filePath: filePath,
-                        fileId: id,
-                        exception: e
-                    );
+                    logger.LogError(ReadFileEvent, EventOutcome.Failure, exception: exception, "Stream from file ended unexpectedly for file at '{FilePath}' with ID '{FileId}'.", filePath, id);
                     return GetGenericFailure(EApplicationErrorCode.IOError);
                 }
 
-                LogFileRead(
-                    logger,
-                    LogLevel.Information,
-                    EventOutcome.Success,
-                    "Read file.",
-                    filePath: filePath,
-                    fileId: id
-                );
+                logger.LogInformation(ReadFileEvent, EventOutcome.Success, "Read file with FileId '{FileId}' at '{FilePath}'.", id, filePath);
                 return Result.Success(file);
             }
         }
-        catch (UnauthorizedAccessException e)
+        catch (UnauthorizedAccessException exception)
         {
-            LogFileRead(
-                logger,
-                LogLevel.Error,
-                EventOutcome.Failure,
-                "File permission error when reading file.",
-                filePath: filePath,
-                fileId: id,
-                exception: e
-            );
+            logger.LogError(ReadFileEvent, EventOutcome.Failure, exception: exception, "File permission error when reading file with ID '{FileId}' at '{FilePath}'.", id, filePath);
             return GetGenericFailure(EApplicationErrorCode.FilePermissionError);
         }
-        catch (FileNotFoundException e)
+        catch (FileNotFoundException exception)
         {
-            LogFileRead(
-                logger,
-                LogLevel.Error,
+            logger.LogError(
+                ReadFileEvent,
                 EventOutcome.Failure,
-                "File not found when reading file.",
-                filePath: filePath,
-                fileId: id,
-                exception: e
+                exception,
+                "File with ID '{FileId}' not found at path '{FilePath}'.",
+                id,
+                filePath
             );
             return GetGenericFailure(EApplicationErrorCode.ResourceNotFound);
         }
-        catch (Exception e)
+        catch (Exception exception)
         {
-            LogFileRead(
-                logger,
-                LogLevel.Error,
+            logger.LogError(
+                ReadFileEvent,
                 EventOutcome.Failure,
-                "Exception when reading file.",
-                filePath: filePath,
-                fileId: id,
-                exception: e
+                exception,
+                "Exception when reading file with ID '{FileId}' at path '{FilePath}'.",
+                id,
+                filePath
             );
             return GetGenericFailure(EApplicationErrorCode.IOError);
         }
     }
 
-    public async Task<Result<(Stream Stream, FileInfoDto Info)>> GetFileStreamAsync(Guid id)
+    public async Task<Result<(Stream Stream, FileInfoDto Info)>> GetFileStreamAsync(Guid id, Guid userId)
     {
         throw new NotImplementedException();
     }
 
-    public async Task<Result> DeleteFileAsync(Guid id)
+    public async Task<Result> DeleteFileAsync(Guid id, Guid userId)
     {
         static Result GetGenericFailure(EApplicationErrorCode errorCode) => Result.Failure(errorCode, "Failed to delete file.");
 
         var fileMetadata = await dbContext.StoredFiles.FirstOrDefaultAsync(f =>
             f.Id.Equals(id) &&
             f.CreatedById != null &&
-            f.CreatedById.Equals(userResolverService.GetCurrentUserGuid())
+            f.CreatedById.Equals(userId)
         );
 
         if (fileMetadata is null)
@@ -339,25 +248,17 @@ public class FileStorageService(
                 f => f.Id.Equals(id)
             );
 
-            LogFileDelete(
-                logger,
-                LogLevel.Error,
+            logger.LogError(
+                DeleteFileEvent,
                 unfilteredFileMetadata is null ? EventOutcome.NotFound : EventOutcome.Denied,
-                unfilteredFileMetadata is null ? "File metadata not found." : "Access to file metadata not authorized.",
-                fileId: id
+                unfilteredFileMetadata is null ? "Metadata not found for file ID '{FileId}'." : "Access to metadata of file with ID '{FileId}' not authorized.",
+                id
             );
             return GetGenericFailure(EApplicationErrorCode.ResourceNotFound);
         }
 
-        if (!Directory.Exists(StorageDir))
+        if (!AssertStorageDirExists(DeleteFileEvent))
         {
-            LogFileDelete(
-                logger,
-                LogLevel.Error,
-                EventOutcome.Failure,
-                "File storage directory does not exist.",
-                fileId: id
-            );
             return GetGenericFailure(EApplicationErrorCode.IOError);
         }
 
@@ -376,29 +277,27 @@ public class FileStorageService(
                 return GetGenericFailure(EApplicationErrorCode.ResourceNotFound);
             }
         }
-        catch (UnauthorizedAccessException e)
+        catch (UnauthorizedAccessException exception)
         {
-            LogFileDelete(
-                logger,
-                LogLevel.Error,
+            logger.LogError(
+                DeleteFileEvent,
                 EventOutcome.Failure,
-                "File permission error when deleting file.",
-                fileId: id,
-                filePath: filePath,
-                exception: e
+                exception,
+                "File permission error when deleting file with ID '{FileId}' at '{FilePath}'.",
+                id,
+                filePath
             );
             return GetGenericFailure(EApplicationErrorCode.FilePermissionError);
         }
-        catch (Exception e)
+        catch (Exception exception)
         {
-            LogFileDelete(
-                logger,
-                LogLevel.Error,
+            logger.LogError(
+                DeleteFileEvent,
                 EventOutcome.Failure,
-                "Exception when deleting file.",
-                fileId: id,
-                filePath: filePath,
-                exception: e
+                exception,
+                "Exception when deleting file with ID '{FileId}' at '{FilePath}'.",
+                id,
+                filePath
             );
             return GetGenericFailure(EApplicationErrorCode.IOError);
         }
@@ -407,27 +306,24 @@ public class FileStorageService(
         {
             await dbContext.SaveChangesAsync();
         }
-        catch (Exception e)
+        catch (Exception exception)
         {
-            LogFileDelete(
-                logger,
-                LogLevel.Critical,
+            logger.LogCritical(
+                DeleteFileEvent,
                 EventOutcome.Failure,
-                "Exception when removing file metadata. There may be lingering database entries!",
-                fileId: id,
-                filePath: filePath,
-                exception: e
+                exception,
+                "Exception when removing metadata of file with ID '{FileId}'. There may be lingering database entries!.",
+                id
             );
             return GetGenericFailure(EApplicationErrorCode.DatabaseError);
         }
 
-        LogFileDelete(
-            logger,
-            LogLevel.Information,
+        logger.LogInformation(
+            DeleteFileEvent,
             EventOutcome.Success,
-            "Deleted file.",
-            fileId: id,
-            filePath: filePath
+            "Deleted file with ID '{FileId}' at '{FilePath}'.",
+            id,
+            filePath
         );
         return Result.Success();
     }
@@ -474,13 +370,13 @@ public class FileStorageService(
                 File.Delete(filePath);
                 SuccessfulDeletes.Add(filePath);
             }
-            catch (Exception e)
+            catch (Exception exception)
             {
                 // TEMP: Currently, file name == file ID
                 var fileId = Guid.Parse(Path.GetFileNameWithoutExtension(filePath));
-                FailedDeletes.Add((fileId, e.Message));
+                FailedDeletes.Add((fileId, exception.Message));
                 FailedFileIds.Add(fileId);
-                logger.LogWarning(DeleteAllFilesEvent, EventOutcome.Failure, exception: e, "Failed to delete file with ID '{FileId}' at '{FilePath}'.", fileId, filePath);
+                logger.LogWarning(DeleteAllFilesEvent, EventOutcome.Failure, exception: exception, "Failed to delete file with ID '{FileId}' at '{FilePath}'.", fileId, filePath);
             }
         }
 
@@ -513,7 +409,7 @@ public class FileStorageService(
         logger.LogInformation(
             DeleteAllFilesEvent,
             EventOutcome.Success,
-            "Deleted {DeletedFileCount} files and {DeletedEntryCount} Db entries.",
+            "Deleted {DeletedFileCount} files and {DeletedEntryCount} DB entries.",
             SuccessfulDeletes.Count,
             dbDeleteCount
         );

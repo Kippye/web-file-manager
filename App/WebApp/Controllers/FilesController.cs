@@ -1,6 +1,7 @@
 using System.Reflection;
 using Application.Contracts;
 using DTO;
+using Infrastructure.Contracts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Mvc;
@@ -13,12 +14,15 @@ namespace WebApp.Controllers
     [RequestSizeLimit(134217728)]
     [RequestFormLimits(MultipartBodyLengthLimit = 134217728, ValueCountLimit = 4)]
     public class FilesController(
+        IUserResolverService userResolverService,
         IFileEncryptionService fileEncryptionService,
         IFileStorageService fileStorageService
     ) : Controller
     {
         private async Task<Result> ProcessUploadedFile(IFormFile file)
         {
+            Guid userId = (Guid)userResolverService.GetUserGuid(User)!;
+
             Result<EncryptedFile>? encryptionResult = null;
             using (var formFileStream = file.OpenReadStream())
             {
@@ -38,7 +42,11 @@ namespace WebApp.Controllers
                 ContentType = file.ContentType,
                 FileSize = file.Length,
             };
-            var storeEncryptedResult = await fileStorageService.StoreFileAsync(fileUploadInfo, encryptionResult.Value!);
+            var storeEncryptedResult = await fileStorageService.StoreFileAsync(
+                fileUploadInfo,
+                encryptionResult.Value!,
+                userId
+            );
             if (!storeEncryptedResult.IsSuccess)
             {
                 return Result.Failure(storeEncryptedResult.Errors);
@@ -49,7 +57,9 @@ namespace WebApp.Controllers
 
         private async Task<IEnumerable<FileInfoViewModel>> CreateViewModel()
         {
-            List<FileInfoDto> fileList = await fileStorageService.GetFileListAsync();
+            Guid userId = (Guid)userResolverService.GetUserGuid(User)!;
+
+            List<FileInfoDto> fileList = await fileStorageService.GetFileListAsync(userId);
 
             return fileList.Select(f =>
                 new FileInfoViewModel()
@@ -121,9 +131,10 @@ namespace WebApp.Controllers
         // Download file by ID
         public async Task<IActionResult> Download([FromRoute] Guid id)
         {
+            Guid userId = (Guid)userResolverService.GetUserGuid(User)!;
             // TODO: Reduce possible file content copies here
 
-            var getFileResult = await fileStorageService.GetFileAsync(id);
+            var getFileResult = await fileStorageService.GetFileAsync(id, userId);
             if (!getFileResult.IsSuccess)
             {
                 ModelState.AddModelError(string.Empty, "File not found.");
@@ -131,7 +142,8 @@ namespace WebApp.Controllers
             }
 
             var decryptResult = await fileEncryptionService.DecryptAsync(
-                getFileResult.Value!.File
+                getFileResult.Value!.File,
+                getFileResult.Value!.Info.Id
             );
             if (!decryptResult.IsSuccess)
             {
@@ -147,7 +159,9 @@ namespace WebApp.Controllers
         // Delete file by id
         public async Task<IActionResult> Delete([FromRoute] Guid id)
         {
-            var deleteResult = await fileStorageService.DeleteFileAsync(id);
+            Guid userId = (Guid)userResolverService.GetUserGuid(User)!;
+
+            var deleteResult = await fileStorageService.DeleteFileAsync(id, userId);
 
             if (!deleteResult.IsSuccess)
             {
