@@ -14,8 +14,7 @@ namespace WebApp.Controllers
     [RequestFormLimits(MultipartBodyLengthLimit = 134217728, ValueCountLimit = 4)]
     public class FilesController(
         IFileEncryptionService fileEncryptionService,
-        IFileStorageService fileStorageService,
-        ILogger<HomeController> logger
+        IFileStorageService fileStorageService
     ) : Controller
     {
         private async Task<Result> ProcessUploadedFile(IFormFile file)
@@ -30,7 +29,6 @@ namespace WebApp.Controllers
             }
             if (!encryptionResult.IsSuccess)
             {
-                logger.LogError(string.Join(". ", encryptionResult.Errors.Select(e => e.Message)));
                 return Result.Failure(encryptionResult.Errors);
             }
 
@@ -43,7 +41,6 @@ namespace WebApp.Controllers
             var storeEncryptedResult = await fileStorageService.StoreFileAsync(fileUploadInfo, encryptionResult.Value!);
             if (!storeEncryptedResult.IsSuccess)
             {
-                logger.LogError(string.Join(". ", storeEncryptedResult.Errors.Select(e => e.Message)));
                 return Result.Failure(storeEncryptedResult.Errors);
             }
 
@@ -113,8 +110,8 @@ namespace WebApp.Controllers
 
                 if (!processResult.IsSuccess)
                 {
-                    // TODO: Handle specific causes
-                    return BadRequest();
+                    ModelState.AddModelError(string.Empty, $"Error: {string.Join(" ", processResult.Errors.Select(e => e.Message))}");
+                    return View(vm);
                 }
             }
 
@@ -129,7 +126,6 @@ namespace WebApp.Controllers
             var getFileResult = await fileStorageService.GetFileAsync(id);
             if (!getFileResult.IsSuccess)
             {
-                logger.LogError(string.Join(". ", getFileResult.Errors.Select(e => e.Message)));
                 ModelState.AddModelError(string.Empty, "File not found.");
                 return View("Index", await CreateViewModel());
             }
@@ -139,7 +135,6 @@ namespace WebApp.Controllers
             );
             if (!decryptResult.IsSuccess)
             {
-                logger.LogError(string.Join(". ", decryptResult.Errors.Select(e => e.Message)));
                 // TODO: Return correct result
                 ModelState.AddModelError(string.Empty, $"File '{getFileResult.Value!.Info.FileName}' has been modified and can't be decrypted.");
                 return View("Index", await CreateViewModel());
@@ -156,7 +151,6 @@ namespace WebApp.Controllers
 
             if (!deleteResult.IsSuccess)
             {
-                logger.LogError(string.Join(". ", deleteResult.Errors.Select(e => e.Message)));
                 // TODO: Return correct result
                 ModelState.AddModelError(string.Empty, "File not found.");
                 return View("Index", await CreateViewModel());

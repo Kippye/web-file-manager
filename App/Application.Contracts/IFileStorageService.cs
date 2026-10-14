@@ -43,7 +43,8 @@ public interface IFileStorageService
     /// <returns></returns>
     Task<Result> DeleteUserFilesAsync(Guid userId);
     /// <summary>
-    /// DANGER: Delete all files in storage.
+    /// DANGER: Delete all files from storage and file metadata from database.
+    /// User directories may or may not be deleted.
     /// </summary>
     /// <returns></returns>
     Task<Result> DeleteAllFilesAsync();
