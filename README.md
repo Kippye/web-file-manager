@@ -33,6 +33,7 @@ Some other decisions were made to limit the scope of this project:
 - Password hashing: ASP.NET Core password-hashing facilities
 - Application data protection: ASP.NET Core Data Protection
 - Transport security: HTTPS/TLS
+- Logging: Serilog
 
 ## Planned Features
 
@@ -94,9 +95,9 @@ These instructions are currently pretty annoying and not fully tested.
 
 ### Generate TLS development certificate
 
-**Install the .NET SDK (10.0).**
+**Install the .NET SDK (>= 10.0 should be fine).**
 
-Create development certificate and trust it - choose a path to save it:
+Create a development certificate and trust it - replace `/path-to-cert/` with the output path and `SomePass` with a password:
 
 `dotnet dev-certs https -ep /path-to-cert/WebApp.pfx -p SomePass && dotnet dev-certs https --trust`
 
@@ -115,34 +116,10 @@ volumes:
 
 Copy `.env.example` to `.env` and set the values.
 
-[Skip to launch!](#launch)
-
-#### Secret Manager
-
-_The Secret Manager only works in Development_.
-
-`cd App/ && dotnet user-secrets -p WebApp/WebApp.csproj init`
-
-Store the cert password from before:
-
-`dotnet user-secrets -p WebApp/WebApp.csproj set "Kestrel:Certificates:Default:Password" "SomePass"`
-
-Store an encryption key:
-
-`dotnet user-secrets -p WebApp/WebApp.csproj set "EncryptionKey" "some32bytesLongStringLikeThisOne"`
-
-Edit `docker-compose.yml`:
-
-```dockerfile
-volumes:
-    ...
-    # Linux: /home/user/.microsoft/usersecrets
-    # Windows: %APPDATA%/Microsoft/UserSecrets
-    - /path-to-usersecrets:/home/ubuntu/.microsoft/usersecrets:ro
-```
+`ASPNETCORE_Kestrel__Certificates__Default__Password` should be the password the certificate was generated with.
 
 ### Launch
 
 `docker compose up`
 
-The app will be up at http://localhost:8090 / https://localhost:8091.
+The app will be available at http://localhost:8090 and https://localhost:8091.
