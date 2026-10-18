@@ -2,32 +2,25 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 #nullable disable
 
-using System;
-using System.Threading.Tasks;
-using Domain.Identity;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
+using Application.Contracts;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.Extensions.Logging;
 
 namespace WebApp.Areas.Identity.Pages.Account
 {
     public class LogoutModel : PageModel
     {
-        private readonly SignInManager<AppUser> _signInManager;
+        private readonly IAuthService _authService;
         private readonly ILogger<LogoutModel> _logger;
 
-        public LogoutModel(SignInManager<AppUser> signInManager, ILogger<LogoutModel> logger)
+        public LogoutModel(IAuthService authService)
         {
-            _signInManager = signInManager;
-            _logger = logger;
+            _authService = authService;
         }
 
         public async Task<IActionResult> OnPost(string returnUrl = null)
         {
-            await _signInManager.SignOutAsync();
-            _logger.LogInformation("User logged out.");
+            await _authService.SignOutAsync();
             if (returnUrl != null)
             {
                 return LocalRedirect(returnUrl);

@@ -5,6 +5,7 @@
 using System;
 using System.Text;
 using System.Threading.Tasks;
+using Application.Contracts;
 using Domain.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -18,12 +19,12 @@ namespace WebApp.Areas.Identity.Pages.Account
     [AllowAnonymous]
     public class RegisterConfirmationModel : PageModel
     {
-        private readonly UserManager<AppUser> _userManager;
+        private readonly IAuthService _authService;
         private readonly IEmailSender _sender;
 
-        public RegisterConfirmationModel(UserManager<AppUser> userManager, IEmailSender sender)
+        public RegisterConfirmationModel(IAuthService authService, IEmailSender sender)
         {
-            _userManager = userManager;
+            _authService = authService;
             _sender = sender;
         }
 
@@ -53,7 +54,7 @@ namespace WebApp.Areas.Identity.Pages.Account
             }
             returnUrl = returnUrl ?? Url.Content("~/");
 
-            var user = await _userManager.FindByEmailAsync(email);
+            var user = await _authService.FindUserByEmailAsync(email);
             if (user == null)
             {
                 return NotFound($"Unable to load user with email '{email}'.");
@@ -64,8 +65,8 @@ namespace WebApp.Areas.Identity.Pages.Account
             DisplayConfirmAccountLink = true;
             if (DisplayConfirmAccountLink)
             {
-                var userId = await _userManager.GetUserIdAsync(user);
-                var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+                var userId = await _authService.GetUserIdAsync(user);
+                var code = await _authService.GenerateEmailConfirmationTokenAsync(user);
                 code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
                 EmailConfirmationUrl = Url.Page(
                     "/Account/ConfirmEmail",

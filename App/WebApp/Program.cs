@@ -49,6 +49,7 @@ builder.Services.AddDefaultIdentity<AppUser>(options => options.SignIn.RequireCo
     .AddEntityFrameworkStores<AppDbContext>();
 builder.Services.AddControllersWithViews();
 
+builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddSingleton<IFileEncryptionService, FileEncryptionService>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 
