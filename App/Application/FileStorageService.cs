@@ -20,7 +20,8 @@ public class FileStorageService(
     private static readonly EventId DeleteFileEvent = new(103, "File deleted");
     private static readonly EventId DeleteAllFilesEvent = new(104, "All files deleted");
 
-    private readonly string StorageDir = Path.Combine(hostEnv.ContentRootPath, "FileStorage");
+    // TODO: Should this be externally configured?
+    private readonly string StorageDir = Path.Combine(hostEnv.ContentRootPath, "files");
 
     private bool AssertStorageDirExists(EventId eventId)
     {
@@ -29,7 +30,7 @@ public class FileStorageService(
             logger.LogError(
                 eventId,
                 EventOutcome.Failure,
-                "File storage directory does not exist."
+                "File storage directory does not exist"
             );
             return false;
         }
@@ -47,12 +48,12 @@ public class FileStorageService(
         }
         catch (UnauthorizedAccessException exception)
         {
-            logger.LogError(WriteFileEvent, EventOutcome.Failure, exception, "File permission error when creating file storage directory at '{FilePath}'.", StorageDir);
+            logger.LogError(WriteFileEvent, EventOutcome.Failure, exception, "File permission error when creating file storage directory at '{FilePath}'", StorageDir);
             return GetGenericFailure(EApplicationErrorCode.FilePermissionError);
         }
         catch (Exception exception)
         {
-            logger.LogError(WriteFileEvent, EventOutcome.Failure, exception, "Exception when creating file storage directory at '{FilePath}'.", StorageDir);
+            logger.LogError(WriteFileEvent, EventOutcome.Failure, exception, "Exception when creating file storage directory at '{FilePath}'", StorageDir);
             return GetGenericFailure(EApplicationErrorCode.IOError);
         }
 
@@ -65,12 +66,12 @@ public class FileStorageService(
         }
         catch (UnauthorizedAccessException exception)
         {
-            logger.LogError(WriteFileEvent, EventOutcome.Failure, exception, "File permission error when creating user directory in storage at '{FilePath}'.", userDirPath);
+            logger.LogError(WriteFileEvent, EventOutcome.Failure, exception, "File permission error when creating user directory in storage at '{FilePath}'", userDirPath);
             return GetGenericFailure(EApplicationErrorCode.FilePermissionError);
         }
         catch (Exception exception)
         {
-            logger.LogError(WriteFileEvent, EventOutcome.Failure, exception: exception, "Exception when creating user directory in storage at '{FilePath}'.", userDirPath);
+            logger.LogError(WriteFileEvent, EventOutcome.Failure, exception: exception, "Exception when creating user directory in storage at '{FilePath}'", userDirPath);
             return GetGenericFailure(EApplicationErrorCode.IOError);
         }
 
@@ -98,7 +99,7 @@ public class FileStorageService(
         }
         catch (Exception exception)
         {
-            logger.LogError(WriteFileEvent, EventOutcome.Failure, exception: exception, "Failed to create file at '{FilePath}'.", fileAbsolutePath);
+            logger.LogError(WriteFileEvent, EventOutcome.Failure, exception: exception, "Failed to create file at '{FilePath}'", fileAbsolutePath);
             // TODO: Handle each File.Create exception
             return GetGenericFailure(EApplicationErrorCode.IOError);
         }
@@ -109,11 +110,11 @@ public class FileStorageService(
         }
         catch (Exception exception)
         {
-            logger.LogError(WriteFileEvent, EventOutcome.Failure, exception: exception, "Failed to save file metadata for file at '{FilePath}'.", fileAbsolutePath);
+            logger.LogError(WriteFileEvent, EventOutcome.Failure, exception: exception, "Failed to save file metadata for file at '{FilePath}'", fileAbsolutePath);
             return GetGenericFailure(EApplicationErrorCode.DatabaseError);
         }
 
-        logger.LogInformation(WriteFileEvent, EventOutcome.Success, "Stored file at '{FilePath}' with ID '{FileId}'.", fileAbsolutePath, addedFileEntry.Entity.Id);
+        logger.LogInformation(WriteFileEvent, EventOutcome.Success, "Stored file at '{FilePath}' with ID '{FileId}'", fileAbsolutePath, addedFileEntry.Entity.Id);
         return Result.Success(addedFileEntry.Entity.Id);
     }
 
@@ -153,7 +154,7 @@ public class FileStorageService(
                 f => f.Id.Equals(id)
             );
 
-            logger.LogError(ReadFileEvent, unfilteredFileMetadata is null ? EventOutcome.NotFound : EventOutcome.Denied, "File metadata not found for file with ID '{FileId}'.", id);
+            logger.LogError(ReadFileEvent, unfilteredFileMetadata is null ? EventOutcome.NotFound : EventOutcome.Denied, "File metadata not found for file with ID '{FileId}'", id);
             return GetGenericFailure(EApplicationErrorCode.ResourceNotFound);
         }
 
@@ -187,17 +188,17 @@ public class FileStorageService(
                 }
                 catch (EndOfStreamException exception)
                 {
-                    logger.LogError(ReadFileEvent, EventOutcome.Failure, exception: exception, "Stream from file ended unexpectedly for file at '{FilePath}' with ID '{FileId}'.", filePath, id);
+                    logger.LogError(ReadFileEvent, EventOutcome.Failure, exception: exception, "Stream from file ended unexpectedly for file at '{FilePath}' with ID '{FileId}'", filePath, id);
                     return GetGenericFailure(EApplicationErrorCode.IOError);
                 }
 
-                logger.LogInformation(ReadFileEvent, EventOutcome.Success, "Read file with FileId '{FileId}' at '{FilePath}'.", id, filePath);
+                logger.LogInformation(ReadFileEvent, EventOutcome.Success, "Read file with FileId '{FileId}' at '{FilePath}'", id, filePath);
                 return Result.Success(file);
             }
         }
         catch (UnauthorizedAccessException exception)
         {
-            logger.LogError(ReadFileEvent, EventOutcome.Failure, exception: exception, "File permission error when reading file with ID '{FileId}' at '{FilePath}'.", id, filePath);
+            logger.LogError(ReadFileEvent, EventOutcome.Failure, exception: exception, "File permission error when reading file with ID '{FileId}' at '{FilePath}'", id, filePath);
             return GetGenericFailure(EApplicationErrorCode.FilePermissionError);
         }
         catch (FileNotFoundException exception)
@@ -206,7 +207,7 @@ public class FileStorageService(
                 ReadFileEvent,
                 EventOutcome.Failure,
                 exception,
-                "File with ID '{FileId}' not found at path '{FilePath}'.",
+                "File with ID '{FileId}' not found at path '{FilePath}'",
                 id,
                 filePath
             );
@@ -218,7 +219,7 @@ public class FileStorageService(
                 ReadFileEvent,
                 EventOutcome.Failure,
                 exception,
-                "Exception when reading file with ID '{FileId}' at path '{FilePath}'.",
+                "Exception when reading file with ID '{FileId}' at path '{FilePath}'",
                 id,
                 filePath
             );
@@ -251,7 +252,7 @@ public class FileStorageService(
             logger.LogError(
                 DeleteFileEvent,
                 unfilteredFileMetadata is null ? EventOutcome.NotFound : EventOutcome.Denied,
-                unfilteredFileMetadata is null ? "Metadata not found for file ID '{FileId}'." : "Access to metadata of file with ID '{FileId}' not authorized.",
+                unfilteredFileMetadata is null ? "Metadata not found for file ID '{FileId}'" : "Access to metadata of file with ID '{FileId}' not authorized",
                 id
             );
             return GetGenericFailure(EApplicationErrorCode.ResourceNotFound);
@@ -283,7 +284,7 @@ public class FileStorageService(
                 DeleteFileEvent,
                 EventOutcome.Failure,
                 exception,
-                "File permission error when deleting file with ID '{FileId}' at '{FilePath}'.",
+                "File permission error when deleting file with ID '{FileId}' at '{FilePath}'",
                 id,
                 filePath
             );
@@ -295,7 +296,7 @@ public class FileStorageService(
                 DeleteFileEvent,
                 EventOutcome.Failure,
                 exception,
-                "Exception when deleting file with ID '{FileId}' at '{FilePath}'.",
+                "Exception when deleting file with ID '{FileId}' at '{FilePath}'",
                 id,
                 filePath
             );
@@ -312,7 +313,7 @@ public class FileStorageService(
                 DeleteFileEvent,
                 EventOutcome.Failure,
                 exception,
-                "Exception when removing metadata of file with ID '{FileId}'. There may be lingering database entries!.",
+                "Exception when removing metadata of file with ID '{FileId}'. There may be lingering database entries!",
                 id
             );
             return GetGenericFailure(EApplicationErrorCode.DatabaseError);
@@ -321,7 +322,7 @@ public class FileStorageService(
         logger.LogInformation(
             DeleteFileEvent,
             EventOutcome.Success,
-            "Deleted file with ID '{FileId}' at '{FilePath}'.",
+            "Deleted file with ID '{FileId}' at '{FilePath}'",
             id,
             filePath
         );
@@ -337,7 +338,7 @@ public class FileStorageService(
     {
         if (!Directory.Exists(StorageDir))
         {
-            logger.LogInformation(DeleteAllFilesEvent, EventOutcome.Success, "Storage directory doesn't exist - no files to delete.");
+            logger.LogInformation(DeleteAllFilesEvent, EventOutcome.Success, "Storage directory doesn't exist - no files to delete");
             // Storage dir doesn't exist so no files exist - done
             return Result.Success();
         }
@@ -361,12 +362,12 @@ public class FileStorageService(
             // Ensure that the path points to a *file*, not a directory
             if (!File.Exists(filePath))
             {
-                logger.LogWarning(DeleteAllFilesEvent, outcome: null, "Path '{FilePath}' was enumerated but is not an existing file.", filePath);
+                logger.LogWarning(DeleteAllFilesEvent, outcome: null, "Path '{FilePath}' was enumerated but is not an existing file", filePath);
                 continue;
             }
             try
             {
-                logger.LogDebug(DeleteAllFilesEvent, "Deleting file at '{FilePath}'.", filePath);
+                logger.LogDebug(DeleteAllFilesEvent, "Deleting file at '{FilePath}'", filePath);
                 File.Delete(filePath);
                 SuccessfulDeletes.Add(filePath);
             }
@@ -376,7 +377,7 @@ public class FileStorageService(
                 var fileId = Guid.Parse(Path.GetFileNameWithoutExtension(filePath));
                 FailedDeletes.Add((fileId, exception.Message));
                 FailedFileIds.Add(fileId);
-                logger.LogWarning(DeleteAllFilesEvent, EventOutcome.Failure, exception: exception, "Failed to delete file with ID '{FileId}' at '{FilePath}'.", fileId, filePath);
+                logger.LogWarning(DeleteAllFilesEvent, EventOutcome.Failure, exception: exception, "Failed to delete file with ID '{FileId}' at '{FilePath}'", fileId, filePath);
             }
         }
 
@@ -392,7 +393,7 @@ public class FileStorageService(
             logger.LogError(
                 DeleteAllFilesEvent,
                 EventOutcome.Failure,
-                "Failed to delete all files. Deleted {DeletedFileCount} files and {DeletedEntryCount} DB entries; Failed to delete {FailedDeleteCount} files.",
+                "Failed to delete all files. Deleted {DeletedFileCount} files and {DeletedEntryCount} DB entries; Failed to delete {FailedDeleteCount} files",
                 SuccessfulDeletes.Count,
                 dbDeleteCount,
                 FailedDeletes.Count
@@ -409,7 +410,7 @@ public class FileStorageService(
         logger.LogInformation(
             DeleteAllFilesEvent,
             EventOutcome.Success,
-            "Deleted {DeletedFileCount} files and {DeletedEntryCount} DB entries.",
+            "Deleted {DeletedFileCount} files and {DeletedEntryCount} DB entries",
             SuccessfulDeletes.Count,
             dbDeleteCount
         );

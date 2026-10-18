@@ -24,7 +24,7 @@ public class FileEncryptionService(IConfiguration configuration, IAppLogger<File
             logger.LogCritical(
                 EncryptFileEvent,
                 EventOutcome.Failure,
-                "The current platform does not support the AES-GCM algorithm."
+                "The current platform does not support the AES-GCM algorithm"
             );
             return GetGenericFailure(EApplicationErrorCode.InvalidOperation);
         }
@@ -34,7 +34,7 @@ public class FileEncryptionService(IConfiguration configuration, IAppLogger<File
             logger.LogCritical(
                 EncryptFileEvent,
                 EventOutcome.Failure,
-                "The encryption key is too short to encrypt with. It must be 32 bytes or longer."
+                "The encryption key is too short to encrypt with. It must be 32 bytes or longer"
             );
             return GetGenericFailure(EApplicationErrorCode.CryptographyError);
         }
@@ -61,16 +61,16 @@ public class FileEncryptionService(IConfiguration configuration, IAppLogger<File
         }
         catch (ArgumentException exception)
         {
-            logger.LogError(EncryptFileEvent, EventOutcome.Failure, exception, "AES-GCM encrypt argument exception.");
+            logger.LogError(EncryptFileEvent, EventOutcome.Failure, exception, "AES-GCM encrypt argument exception");
             return GetGenericFailure(EApplicationErrorCode.CryptographyError);
         }
         catch (CryptographicException exception)
         {
-            logger.LogError(EncryptFileEvent, EventOutcome.Failure, exception, "Failed to encrypt file.");
+            logger.LogError(EncryptFileEvent, EventOutcome.Failure, exception, "Failed to encrypt file");
             return GetGenericFailure(EApplicationErrorCode.CryptographyError);
         }
 
-        logger.LogInformation(EncryptFileEvent, EventOutcome.Success, "Encrypted file.");
+        logger.LogInformation(EncryptFileEvent, EventOutcome.Success, "Encrypted file");
         return Result.Success(encryptedFile);
     }
 
@@ -96,7 +96,7 @@ public class FileEncryptionService(IConfiguration configuration, IAppLogger<File
                 DecryptFileEvent,
                 EventOutcome.Failure,
                 exception,
-                "AES decrypt argument exception when decrypting file with ID '{FileId}'.",
+                "AES decrypt argument exception when decrypting file with ID '{FileId}'",
                 fileId
             );
             return GetGenericFailure(EApplicationErrorCode.CryptographyError);
@@ -107,7 +107,7 @@ public class FileEncryptionService(IConfiguration configuration, IAppLogger<File
                 DecryptFileEvent,
                 EventOutcome.Failure,
                 exception,
-                "Authentication tag mismatch when decrypting file with ID '{FileId}'. The file might have been modified!",
+                "Authentication tag mismatch when decrypting file with ID '{FileId}' - the file might have been modified",
                 fileId
             );
             return Result<byte[]>.Failure(
@@ -117,11 +117,11 @@ public class FileEncryptionService(IConfiguration configuration, IAppLogger<File
         }
         catch (CryptographicException exception)
         {
-            logger.LogError(DecryptFileEvent, EventOutcome.Failure, exception, "Failed to decrypt file with ID '{FileId}'.", fileId);
+            logger.LogError(DecryptFileEvent, EventOutcome.Failure, exception, "Failed to decrypt file with ID '{FileId}'", fileId);
             return GetGenericFailure(EApplicationErrorCode.CryptographyError);
         }
 
-        logger.LogInformation(DecryptFileEvent, EventOutcome.Success, "Decrypted file with ID '{FileId}'.", fileId);
+        logger.LogInformation(DecryptFileEvent, EventOutcome.Success, "Decrypted file with ID '{FileId}'", fileId);
         return Result.Success(plaintext);
     }
 }

@@ -8,7 +8,7 @@ riderModule.iml
 
 # Custom stuff
 
-FileStorage/
+files/
 *.db
 *.db-shm
 *.db-wal
@@ -16,6 +16,9 @@ bin\\Debug/
 bin\\
 bin\\*/
 plans/
+
+# Logs
+logs/
 
 ## https://raw.githubusercontent.com/github/gitignore/main/Global/MicrosoftOffice.gitignore
 *.tmp

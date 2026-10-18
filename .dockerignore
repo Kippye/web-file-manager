@@ -11,3 +11,6 @@ docker-compose.yml
 **/.vs  
 .dotnet  
 .Microsoft.DotNet.ImageBuilder
+files/
+logs/
+data/

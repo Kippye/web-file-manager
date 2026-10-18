@@ -6,31 +6,31 @@ using Infrastructure.EF;
 using Infrastructure.EF.OperationProcessing;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
+using Serilog;
+using Serilog.Formatting.Compact;
 using WebApp;
 using WebApp.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Logging.ClearProviders();
-builder.Logging.AddJsonConsole(options =>
-{
-    options.IncludeScopes = false;
-    options.TimestampFormat = "yyyy-MM-ddTHH:mm:ss.fffZ";
-    options.UseUtcTimestamp = true;
-    var writerOptions = options.JsonWriterOptions;
-    writerOptions.Indented = true;
-    options.JsonWriterOptions = writerOptions;
-});
 
-// Add services to the container.
-// NOTE: AppLogger uses IUserResolverService, both use HttpContextAccessor.
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddSingleton<IUserResolverService, UserResolverService>();
+builder.Services.AddSingleton<LogEnricher>();
+builder.Host.UseSerilog((ctx, services, cfg) => cfg
+    .ReadFrom.Configuration(ctx.Configuration) // Read base settings from app configuration
+    .Enrich.With(services.GetRequiredService<LogEnricher>())
+    .Destructure.ByTransforming<EventId>(e => new { e.Id, e.Name }) // Avoid adding $type
+    .WriteTo.Console()
+    .WriteTo.File(new CompactJsonFormatter(), "logs/log.json") // TODO: Configure log directory externally?
+);
 builder.Services.AddSingleton(typeof(IAppLogger<>), typeof(AppLogger<>));
 
-builder.Services.AddScoped<IEntityActionStrategy, AuditEntityCreatedStrategy>();
-builder.Services.AddScoped<IEntityActionStrategy, AuditEntityUpdatedStrategy>();
-builder.Services.AddScoped<IDataOperationProcessor, DataOperationProcessor>();
+// NOTE: IUserResolverService is used by entity action strategies
+builder.Services.AddSingleton<IUserResolverService, UserResolverService>();
+builder.Services.AddSingleton<IEntityActionStrategy, AuditEntityCreatedStrategy>();
+builder.Services.AddSingleton<IEntityActionStrategy, AuditEntityUpdatedStrategy>();
+builder.Services.AddSingleton<IDataOperationProcessor, DataOperationProcessor>();
 
 builder.Services.AddDataProtection()
     .SetApplicationName("FileMan")
@@ -39,7 +39,11 @@ builder.Services.AddDataProtection()
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(connectionString));
-builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+}
 
 builder.Services.AddDefaultIdentity<AppUser>(options => options.SignIn.RequireConfirmedAccount = true)
     .AddEntityFrameworkStores<AppDbContext>();
@@ -49,6 +53,8 @@ builder.Services.AddSingleton<IFileEncryptionService, FileEncryptionService>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 
 var app = builder.Build();
+
+app.UseSerilogRequestLogging();
 
 // TODO: Move
 using var serviceScope = app.Services

@@ -1,39 +1,25 @@
 using Infrastructure.Contracts;
+using Serilog.Events;
 namespace WebApp;
 
-public class AppLogger<TCategoryName>(ILogger<TCategoryName> logger, IHttpContextAccessor httpContext, IUserResolverService userResolverService) : IAppLogger<TCategoryName>
+public class AppLogger<TCategoryName>() : IAppLogger<TCategoryName>
 {
-    public IDisposable? BeginScope<TState>(TState state) where TState : notnull
-    {
-        return logger.BeginScope(state);
-    }
-
     public void Log(LogLevel logLevel, EventId eventId, EventOutcome? outcome, Exception? exception, string? message, params object?[] args)
     {
-        if (!logger.IsEnabled(logLevel))
+        var contextLogger = Serilog.Log
+            .ForContext<TCategoryName>()
+            .ForContext("EventId", eventId, destructureObjects: true);
+
+        if (outcome.HasValue)
         {
-            return;
+            contextLogger = contextLogger.ForContext("Outcome", outcome.Value);
         }
 
-        string? userId = userResolverService.GetCurrentUserGuid()?.ToString();
-        string? requestTrace = null;
-        System.Net.IPAddress? sourceAddress = null;
-        if (httpContext.HttpContext != null)
-        {
-            sourceAddress = httpContext.HttpContext.Connection.RemoteIpAddress;
-            requestTrace = httpContext.HttpContext.TraceIdentifier;
-        }
-
-        var combinedArgs = args
-            .Concat([userId, requestTrace, sourceAddress?.MapToIPv4(), outcome])
-            .ToArray();
-
-        logger.Log(
-            logLevel,
-            eventId,
+        contextLogger.Write(
+            (LogEventLevel)logLevel,
             exception,
-            (message ?? "") + " UserId={UserId} RequestTrace={RequestTrace} SourceIp={SourceIp} Outcome={Outcome}",
-            combinedArgs
+            message ?? "",
+            args
         );
     }
 

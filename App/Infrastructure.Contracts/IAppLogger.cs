@@ -22,10 +22,12 @@ public enum EventOutcome
     NotFound
 }
 
+/// <summary>
+/// A logging wrapper to add outcomes to logs.
+/// </summary>
+/// <typeparam name="TCategoryName"></typeparam>
 public interface IAppLogger<TCategoryName>
 {
-    IDisposable? BeginScope<TState>(TState state) where TState : notnull;
-
     void Log(LogLevel logLevel, EventId eventId, EventOutcome? outcome, Exception? exception, string? message, params object?[] args);
 
     /// <summary>

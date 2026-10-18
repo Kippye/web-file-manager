@@ -17,10 +17,12 @@ services:
       ASPNETCORE_Kestrel__Certificates__Default__Path: "/https/WebApp.pfx"
     env_file: ".env"
     volumes:
-      - aspnet-files:/app/FileStorage
+      - aspnet-files:/app/files
       - aspnet-data:/app/data
+      - aspnet-logs:/app/logs
       - /home/kip/.aspnet/https:/https:ro
 
 volumes: 
     aspnet-files:
     aspnet-data:
+    aspnet-logs:
