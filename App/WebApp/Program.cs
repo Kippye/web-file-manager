@@ -51,6 +51,7 @@ builder.Services.AddDefaultIdentity<AppUser>(options => options.SignIn.RequireCo
 builder.Services.AddControllersWithViews();
 
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddSingleton<IFileValidator, FileValidator>();
 builder.Services.AddSingleton<IFileEncryptionService, FileEncryptionService>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 

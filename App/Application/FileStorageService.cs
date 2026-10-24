@@ -83,7 +83,7 @@ public class FileStorageService(
         // Note: Owner user is automatically set at EF-level from HTTP context
         var addedFileEntry = dbContext.StoredFiles.Add(new StoredFile()
         {
-            FileSize = fileInfo.FileSize,
+            FileSize = fileInfo.FileSizeBytes,
             OriginalFileName = fileInfo.FileName,
             Nonce = file.Nonce,
             AuthenticationTag = file.AuthenticationTag,

@@ -15,32 +15,37 @@ namespace WebApp.Controllers
     [RequestFormLimits(MultipartBodyLengthLimit = 134217728, ValueCountLimit = 4)]
     public class FilesController(
         IUserResolverService userResolverService,
+        IFileValidator fileValidator,
         IFileEncryptionService fileEncryptionService,
         IFileStorageService fileStorageService
     ) : Controller
     {
-        private async Task<Result> ProcessUploadedFile(IFormFile file)
+        private async Task<Result<Guid>> ProcessUploadedFile(IFormFile file)
         {
             Guid userId = (Guid)userResolverService.GetUserGuid(User)!;
 
             Result<EncryptedFile>? encryptionResult = null;
-            using (var formFileStream = file.OpenReadStream())
+            try
             {
+                using var formFileStream = file.OpenReadStream();
                 var fileBytes = new byte[formFileStream.Length];
-                // TODO: Handle end-of-stream exception
                 await formFileStream.ReadExactlyAsync(fileBytes);
                 encryptionResult = await fileEncryptionService.EncryptAsync(fileBytes);
             }
+            catch
+            {
+                return Result<Guid>.Failure(EApplicationErrorCode.UnknownError, "Failed to read uploaded file.");
+            }
             if (!encryptionResult.IsSuccess)
             {
-                return Result.Failure(encryptionResult.Errors);
+                return Result<Guid>.Failure(encryptionResult.Errors);
             }
 
             var fileUploadInfo = new FileUploadInfoDto()
             {
                 FileName = file.FileName,
                 ContentType = file.ContentType,
-                FileSize = file.Length,
+                FileSizeBytes = file.Length,
             };
             var storeEncryptedResult = await fileStorageService.StoreFileAsync(
                 fileUploadInfo,
@@ -49,10 +54,10 @@ namespace WebApp.Controllers
             );
             if (!storeEncryptedResult.IsSuccess)
             {
-                return Result.Failure(storeEncryptedResult.Errors);
+                return Result<Guid>.Failure(storeEncryptedResult.Errors);
             }
 
-            return Result.Success();
+            return Result.Success(storeEncryptedResult.Value);
         }
 
         private async Task<IEnumerable<FileInfoViewModel>> CreateViewModel()
@@ -111,8 +116,29 @@ namespace WebApp.Controllers
                 return View(vm);
             }
 
-            // TODO: Initial validation: size, type, extension, etc.
             // Validate all files before any are processed!
+            // NOTE: For a general-purpose file manager that doesn't execute or read the stored files, 
+            // extension / content-type checking is not really necessary (and both can be faked by user anyway).
+            // So this is just for the sake of implementing it (required by task)
+            foreach (IFormFile file in vm.Files)
+            {
+                Result validation = fileValidator.Validate(new FileUploadInfoDto()
+                {
+                    FileName = file.FileName,
+                    ContentType = file.ContentType,
+                    FileSizeBytes = file.Length
+                });
+
+                if (!validation.IsSuccess)
+                {
+                    ModelState.AddModelError(
+                        string.Empty,
+                        $"Validation error ({file.FileName}), no files were stored: {string.Join(" ", validation.Errors.Select(e => e.Message))}"
+                    );
+                    // TOOD: Maybe validate all files before returning, but it complicates things
+                    return View(vm);
+                }
+            }
 
             foreach (IFormFile file in vm.Files)
             {
