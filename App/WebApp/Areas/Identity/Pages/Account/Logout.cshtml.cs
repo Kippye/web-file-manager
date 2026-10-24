@@ -11,7 +11,6 @@ namespace WebApp.Areas.Identity.Pages.Account
     public class LogoutModel : PageModel
     {
         private readonly IAuthService _authService;
-        private readonly ILogger<LogoutModel> _logger;
 
         public LogoutModel(IAuthService authService)
         {

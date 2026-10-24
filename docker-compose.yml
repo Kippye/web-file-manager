@@ -15,6 +15,7 @@ services:
       ASPNETCORE_HTTP_PORTS: "8090"
       ASPNETCORE_HTTPS_PORTS: "8091"
       ASPNETCORE_Kestrel__Certificates__Default__Path: "/https/WebApp.pfx"
+      Seq__ServerUrl: "http://seq:5341"
     env_file: ".env"
     volumes:
       - aspnet-files:/app/files
@@ -22,7 +23,32 @@ services:
       - aspnet-logs:/app/logs
       - /home/kip/.aspnet/https:/https:ro
 
+  seq:
+    # build:
+    #   context: .
+    #   dockerfile_inline: |
+    #     FROM datalust/seq:latest
+    #     RUN /bin/seqentry
+    image: datalust/seq:latest
+    depends_on:
+      - aspnet
+    deploy:
+      resources:
+        limits:
+          memory: 500m
+    ports: 
+      - "5341:80"
+      - "5342:5341"
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+      SEQ_FIRSTRUN_NOAUTHENTICATION: "True" # TEMP: no authentication
+    volumes:
+      - seq-data:/data
+
+
 volumes: 
     aspnet-files:
     aspnet-data:
     aspnet-logs:
+    seq-data:

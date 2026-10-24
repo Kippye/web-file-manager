@@ -23,6 +23,7 @@ builder.Host.UseSerilog((ctx, services, cfg) => cfg
     .Destructure.ByTransforming<EventId>(e => new { e.Id, e.Name }) // Avoid adding $type
     .WriteTo.Console()
     .WriteTo.File(new CompactJsonFormatter(), "logs/log.json") // TODO: Configure log directory externally?
+    .WriteTo.Seq(ctx.Configuration.GetRequiredSection("Seq").GetValue<string>("ServerUrl")!) // Write to Seq for UI log viewing
 );
 builder.Services.AddSingleton(typeof(IAppLogger<>), typeof(AppLogger<>));
 
@@ -67,26 +68,26 @@ var fileStorageService = serviceScope.ServiceProvider.GetRequiredService<IFileSt
 
 if (app.Configuration.GetValue<bool>("DataInitialization:ClearFiles"))
 {
-    app.Logger.LogWarning("ClearFiles");
+    Log.Warning("ClearFiles");
     fileStorageService.DeleteAllFilesAsync().Wait();
 }
 
 if (app.Configuration.GetValue<bool>("DataInitialization:DropDatabase"))
 {
-    app.Logger.LogWarning("DropDatabase");
+    Log.Warning("DropDatabase");
     context.Database.EnsureDeleted();
 }
 
 // NOTE: Only for testing (bypasses migrations to create full schema)
 if (app.Configuration.GetValue<bool>("DataInitialization:CreateDatabase"))
 {
-    app.Logger.LogInformation("CreateDatabase");
+    Log.Information("CreateDatabase");
     context.Database.EnsureCreated();
 }
 
 if (app.Configuration.GetValue<bool>("DataInitialization:MigrateDatabase"))
 {
-    app.Logger.LogInformation("MigrateDatabase");
+    Log.Information("MigrateDatabase");
     context.Database.Migrate();
 }
 
