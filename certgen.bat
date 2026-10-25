@@ -11,7 +11,7 @@ if "%~1"=="" (
 
 if not exist "cert\" mkdir "cert"
 
-docker run --name certgen -v "%cd%\cert:/app_cert" mcr.microsoft.com/dotnet/sdk:10.0 sh -c "dotnet dev-certs https -ep /app_cert/WebApp.pfx -p '%~1'"
+docker run --name certgen -v "%cd%\cert:C:\app_cert" mcr.microsoft.com/dotnet/sdk:10.0-windowsservercore-ltsc2025 powershell -Command "dotnet dev-certs https -ep C:\app_cert\WebApp.pfx -p '%~1'"
 
 set "RESULT=%ERRORLEVEL%"
 
