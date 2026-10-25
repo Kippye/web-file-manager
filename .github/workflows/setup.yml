@@ -1,0 +1,79 @@
+name: Setup
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  certgen-windows:
+    name: Certificate via certgen.bat
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure certificate path
+        shell: pwsh
+        run: |
+          "CERTIFICATE_DIR=./cert" >> $env:GITHUB_ENV
+          "CERTIFICATE_PASSWORD=SomePass" >> $env:GITHUB_ENV
+
+      - name: Generate development certificate
+        shell: cmd
+        run: certgen.bat SomePass
+
+      - name: Start services and verify startup
+        shell: pwsh
+        run: docker compose up --build --wait --wait-timeout 90
+
+      - name: Show logs on failure
+        if: failure()
+        shell: pwsh
+        run: docker compose logs --no-color
+
+      - name: Stop and remove services
+        if: always()
+        shell: pwsh
+        run: docker compose down --volumes --remove-orphans
+
+  dev-certs-windows:
+    name: Certificate via .NET SDK
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install .NET SDK 10
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Generate development certificate
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path ./certs | Out-Null
+          dotnet dev-certs https -ep ./certs/WebApp.pfx -p SomePass
+          if ($LASTEXITCODE -ne 0) {
+            throw "Certificate generation failed."
+          }
+
+      - name: Configure certificate path
+        shell: pwsh
+        run: |
+          "CERTIFICATE_DIR=./certs" >> $env:GITHUB_ENV
+          "CERTIFICATE_PASSWORD=SomePass" >> $env:GITHUB_ENV
+
+      - name: Start services and verify startup
+        shell: pwsh
+        run: docker compose up --build --wait --wait-timeout 90
+
+      - name: Show logs on failure
+        if: failure()
+        shell: pwsh
+        run: docker compose logs --no-color
+
+      - name: Stop and remove services
+        if: always()
+        shell: pwsh
+        run: docker compose down --volumes --remove-orphans
