@@ -73,7 +73,7 @@ namespace WebApp.Controllers
                     ContentType = f.ContentType,
                     FileName = f.FileName,
                     FileSize = f.FileSize,
-                    UploadedAt = f.UploadedAt.ToLocalTime().ToString()
+                    UploadedAtUtc = f.UploadedAt
                 }
             );
         }

@@ -88,9 +88,12 @@
                         @fileInfo.FileSize.AsFileSize()
                     </td>
                     <td class="fit">
-                        @fileInfo.UploadedAt
+                        <span class="local-datetime" title="@(fileInfo.UploadedAtUtc.ToUtcString())"
+                              data-utc="@(fileInfo.UploadedAtUtc.ToUtcString())">
+                            @fileInfo.UploadedAtUtc.ToUtcString()
+                        </span>
                     </td>
-                    <td class="fit">
+                    <td class=" fit">
                         <span>
                             <a asp-action="Download" asp-route-id=@fileInfo.Id.ToString()
                                class="button-download-icon btn btn-sm btn-light" title="Download">
