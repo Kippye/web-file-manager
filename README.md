@@ -91,35 +91,52 @@ Every file operation must additionally perform server-side ownership verificatio
 
 ## Usage Instructions
 
-These instructions are currently pretty annoying and not fully tested.
+These instructions have only been tested on Linux.
 
 ### Generate TLS development certificate
 
-**Install the .NET SDK (>= 10.0 should be fine).**
+#### Helper scripts (optional)
 
-Create a development certificate and trust it - replace `/path-to-cert/` with the output path and `SomePass` with a password:
+Linux:
 
-`dotnet dev-certs https -ep /path-to-cert/WebApp.pfx -p SomePass && dotnet dev-certs https --trust`
-
-Edit `docker-compose.yml`:
-
-```dockerfile
-volumes:
-    ...
-    # The directory passed to dev-certs
-    - /path-to-cert:/https:ro
+```
+certgen.sh <password>
 ```
 
-### Secrets
+Creates a certificate at ./cert/WebApp.pfx.
 
-#### Environment variables
+Windows (untested):
 
-Copy `.env.example` to `.env` and set the values.
+```
+certgen.bat <password>
+```
 
-`ASPNETCORE_Kestrel__Certificates__Default__Password` should be the password the certificate was generated with.
+Creates a certificate at cert\WebApp.pfx.
+
+After generating, you can complete only step 3 below (but the certificate will be untrusted).
+
+#### Manual
+
+1. Install the [.NET SDK](https://dotnet.microsoft.com/en-us/download/dotnet/10.0) (>= 10.0 should be fine).
+
+2. Create a development certificate and trust it - replace `/path-to-cert/` with the output path and `SomePass` with a password:
+
+```bash
+dotnet dev-certs https -ep /path-to-cert/WebApp.pfx -p SomePass && dotnet dev-certs https --trust
+```
+
+3. Copy `.env.example` to `.env` and set the values from above:
+
+- `CERTIFICATE_DIR`=_/path-to-cert_
+- `CERTIFICATE_NAME`=_WebApp.pfx_
+- `CERTIFICATE_PASSWORD`=_SomePass_
 
 ### Launch
 
-`docker compose up`
+```
+docker compose up
+```
 
-The app will be available at http://localhost:8090 and https://localhost:8091.
+The app is available at http://localhost:8090 and https://localhost:8091.
+
+Logs can be viewed via Seq at http://localhost:5341.

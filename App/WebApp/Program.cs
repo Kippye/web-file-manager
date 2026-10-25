@@ -93,6 +93,8 @@ if (app.Configuration.GetValue<bool>("DataInitialization:MigrateDatabase"))
 }
 
 // Configure the HTTP request pipeline.
+// NOTE: HTTP is (temporarily?) allowed in Development
+// in Production, all HTTP gets upgraded to HTTPS
 if (app.Environment.IsDevelopment())
 {
     app.UseMigrationsEndPoint();
@@ -102,9 +104,9 @@ else
     app.UseExceptionHandler("/Home/Error");
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
+    app.UseHttpsRedirection();
 }
 
-app.UseHttpsRedirection();
 app.UseRouting();
 
 app.UseAuthorization();

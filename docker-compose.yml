@@ -10,25 +10,22 @@ services:
         max-size: 10m
         max-file: "3"
     # restart: unless-stopped
+    env_file: ".env"
     environment:
       ASPNETCORE_ENVIRONMENT: "Development"
+      # ASPNETCORE_ENVIRONMENT: "Production"
       ASPNETCORE_HTTP_PORTS: "8090"
       ASPNETCORE_HTTPS_PORTS: "8091"
-      ASPNETCORE_Kestrel__Certificates__Default__Path: "/https/WebApp.pfx"
+      ASPNETCORE_Kestrel__Certificates__Default__Path: "/https/${CERTIFICATE_NAME}"
+      ASPNETCORE_Kestrel__Certificates__Default__Password: "${CERTIFICATE_PASSWORD}"
       Seq__ServerUrl: "http://seq:5341"
-    env_file: ".env"
     volumes:
       - aspnet-files:/app/files
       - aspnet-data:/app/data
       - aspnet-logs:/app/logs
-      - /home/kip/.aspnet/https:/https:ro
+      - ${CERTIFICATE_DIR}:/https:ro
 
   seq:
-    # build:
-    #   context: .
-    #   dockerfile_inline: |
-    #     FROM datalust/seq:latest
-    #     RUN /bin/seqentry
     image: datalust/seq:latest
     depends_on:
       - aspnet
