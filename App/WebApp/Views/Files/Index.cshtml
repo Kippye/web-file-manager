@@ -1,6 +1,47 @@
-﻿@model IEnumerable<WebApp.Models.FileInfoViewModel>
+﻿@using System.Reflection
+@using Microsoft.CodeAnalysis.CSharp.Syntax
+@model IEnumerable<WebApp.Models.FileInfoViewModel>
 @{
     ViewData["Title"] = "Files";
+
+    (string, string) GetIconAndNameForMimeType(string mimeType)
+    {
+        string category = mimeType.Split("/")[0];
+
+        switch (mimeType)
+        {
+            case ("application/pdf"):
+                return ("file-earmark-pdf.svg", "PDF");
+            case ("application/msword"):
+            case ("application/vnd.openxmlformats-officedocument.wordprocessingml.document"):
+            case ("application/vnd.oasis.opendocument.text"):
+                return ("file-earmark-richtext.svg", "Document");
+            case ("application/vnd.ms-powerpoint"):
+            case ("application/vnd.openxmlformats-officedocument.presentationml.presentation"):
+            case ("application/vnd.oasis.opendocument.presentation"):
+                return ("file-earmark-slides.svg", "Presentation");
+            case ("application/vnd.ms-excel"):
+            case ("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"):
+                return ("file-earmark-excel.svg", "Excel spreadsheet");
+            case ("application/vnd.oasis.opendocument.spreadsheet"):
+                return ("file-earmark-bar-graph.svg", "Spreadsheet");
+
+            default:
+                break;
+        }
+
+        switch (category)
+        {
+            case ("image"):
+                return ("file-earmark-image.svg", "Image");
+            case ("audio"):
+                return ("file-earmark-music.svg", "Audio");
+            case ("video"):
+                return ("file-earmark-play.svg", "Video");
+            default:
+                return ("file-earmark.svg", "File");
+        }
+    }
 }
 
 <div class="text-center">
@@ -28,10 +69,19 @@
         <tbody>
             @foreach (var fileInfo in Model)
             {
+                (string iconFile, string fileTypeName) = GetIconAndNameForMimeType(fileInfo.ContentType);
                 <tr>
                     <td class="filename">
-                        <div class="text-truncate text-primary-emphasis" title="@fileInfo.FileName">
-                            @fileInfo.FileName
+                        <div class="row gx-1 flex-nowrap">
+                            <div class="col-auto">
+                                <img src="/assets/@iconFile" btn-primary alt="@fileTypeName" title="@fileTypeName" width="24"
+                                     height="24">
+                            </div>
+                            <div class="col text-start">
+                                <div class="text-truncate text-primary-emphasis" title="@fileInfo.FileName">
+                                    @fileInfo.FileName
+                                </div>
+                            </div>
                         </div>
                     </td>
                     <td class="fit">

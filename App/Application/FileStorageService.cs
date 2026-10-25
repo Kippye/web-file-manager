@@ -85,6 +85,7 @@ public class FileStorageService(
         {
             FileSize = fileInfo.FileSizeBytes,
             OriginalFileName = fileInfo.FileName,
+            MimeType = fileInfo.ContentType,
             Nonce = file.Nonce,
             AuthenticationTag = file.AuthenticationTag,
             StoragePath = fileRelativePath
@@ -130,7 +131,7 @@ public class FileStorageService(
                     FileName = f.OriginalFileName,
                     FileSize = f.FileSize,
                     UploadedAt = f.CreatedAt,
-                    ContentType = "N/A" // TEMP
+                    ContentType = f.MimeType
                 }
             )
             .ToListAsync();
@@ -178,7 +179,7 @@ public class FileStorageService(
                         FileName = fileMetadata.OriginalFileName,
                         FileSize = fileMetadata.FileSize,
                         UploadedAt = fileMetadata.CreatedAt,
-                        ContentType = "N/A" // TEMP
+                        ContentType = fileMetadata.MimeType
                     },
                     File = new EncryptedFile(streamLength, fileMetadata.Nonce, fileMetadata.AuthenticationTag)
                 };

@@ -14,6 +14,10 @@ public class StoredFile : BaseEntity
     /// </summary>
     public string OriginalFileName { get; set; } = default!;
     /// <summary>
+    /// The MIME type of the file (e.g. "image/png").
+    /// </summary>
+    public string MimeType { get; set; } = default!;
+    /// <summary>
     /// The relative path of the file in storage.
     /// </summary>
     public string StoragePath { get; set; } = default!;

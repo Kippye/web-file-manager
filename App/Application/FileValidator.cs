@@ -9,6 +9,13 @@ public class FileValidator(IAppLogger<FileValidator> logger) : BaseFileValidator
 {
     public Result Validate(FileUploadInfoDto fileInfo)
     {
+        // NOTE: Storing and then loading empty content type causes a 500 error due to invalid header value
+        if (string.IsNullOrWhiteSpace(fileInfo.ContentType))
+        {
+            logger.LogInformation(ValidateFileEvent, EventOutcome.Failure, "File '{FileName}' has empty content type '{FileContentType}'", fileInfo.FileName, fileInfo.ContentType);
+            return Result.Failure(EApplicationErrorCode.ValidationError, "Invalid file type");
+        }
+
         // Get extension (without '.')
         string extension = Path.GetExtension(fileInfo.FileName).TrimStart('.');
 
@@ -25,9 +32,10 @@ public class FileValidator(IAppLogger<FileValidator> logger) : BaseFileValidator
             if (mappedContentType is null)
             {
                 logger.LogInformation(ValidateFileEvent, EventOutcome.Failure, "File '{FileName}' extension '{FileExtension}' could not be mapped to a content type", fileInfo.FileName, extension);
-                return Result.Failure(EApplicationErrorCode.ValidationError, $"Invalid file extension '{extension}'");
+                // TODO: Some things like .odp are not in the map so this would block them
+                // return Result.Failure(EApplicationErrorCode.ValidationError, $"Invalid file extension '{extension}'");
             }
-            if (!mappedContentType.Equals(fileInfo.ContentType))
+            else if (!mappedContentType.Equals(fileInfo.ContentType))
             {
                 logger.LogInformation(
                     ValidateFileEvent,

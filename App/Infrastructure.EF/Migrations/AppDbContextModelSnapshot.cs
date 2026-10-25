@@ -134,6 +134,10 @@ namespace Infrastructure.EF.Migrations
                     b.Property<long>("FileSize")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("MimeType")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<byte[]>("Nonce")
                         .IsRequired()
                         .HasColumnType("BLOB");
