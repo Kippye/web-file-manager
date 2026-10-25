@@ -13,11 +13,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure certificate path
+      - name: Configure environment
         shell: pwsh
         run: |
           "CERTIFICATE_DIR=./cert" >> $env:GITHUB_ENV
+          "CERTIFICATE_NAME=WebApp.pfx" >> $env:GITHUB_ENV
           "CERTIFICATE_PASSWORD=SomePass" >> $env:GITHUB_ENV
+          "EncryptionKey=some32bytesLongStringLikeThisOne" >> $env:GITHUB_ENV
 
       - name: Generate development certificate
         shell: cmd
@@ -58,11 +60,13 @@ jobs:
             throw "Certificate generation failed."
           }
 
-      - name: Configure certificate path
+      - name: Configure environment
         shell: pwsh
         run: |
           "CERTIFICATE_DIR=./certs" >> $env:GITHUB_ENV
+          "CERTIFICATE_NAME=WebApp.pfx" >> $env:GITHUB_ENV
           "CERTIFICATE_PASSWORD=SomePass" >> $env:GITHUB_ENV
+          "EncryptionKey=some32bytesLongStringLikeThisOne" >> $env:GITHUB_ENV
 
       - name: Start services and verify startup
         shell: pwsh
