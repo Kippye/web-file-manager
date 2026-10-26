@@ -20,7 +20,7 @@ jobs:
         shell: pwsh
         run: |
           $process = Start-Process dotnet `
-              -ArgumentList "run --project App/WebApp/ -e $EncryptionKey" `
+              -ArgumentList "run --project App/WebApp/ -e EncryptionKey=$EncryptionKey" `
               -PassThru `
               -NoNewWindow
 
