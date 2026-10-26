@@ -80,7 +80,7 @@ jobs:
           ENDPOINT="http://localhost:5256"
           TIMEOUT=60
 
-          dotnet run --project App/WebApp/ -e EncryptionKey=$EncryptionKey" > app.log 2>&1 &
+          dotnet run --project App/WebApp/ -e EncryptionKey=$EncryptionKey > app.log 2>&1 &
           APP_PID=$!
 
           cleanup() {
