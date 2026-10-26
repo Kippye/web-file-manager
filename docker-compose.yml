@@ -12,8 +12,6 @@ services:
     # restart: unless-stopped
     env_file: ".env"
     environment:
-      ASPNETCORE_ENVIRONMENT: "Development"
-      # ASPNETCORE_ENVIRONMENT: "Production"
       ASPNETCORE_HTTP_PORTS: "8090"
       ASPNETCORE_HTTPS_PORTS: "8091"
       ASPNETCORE_Kestrel__Certificates__Default__Path: "/https/${CERTIFICATE_NAME}"

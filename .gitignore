@@ -7,6 +7,9 @@ riderModule.iml
 # Secrets
 .env
 *.pfx
+*.key
+*.crt
+*.pem
 
 # Custom stuff
 

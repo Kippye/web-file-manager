@@ -173,8 +173,14 @@ namespace WebApp.Controllers
             );
             if (!decryptResult.IsSuccess)
             {
-                // TODO: Return correct result
-                ModelState.AddModelError(string.Empty, $"File '{getFileResult.Value!.Info.FileName}' has been modified and can't be decrypted.");
+                if (decryptResult.Errors.Any(e => e.Code == EApplicationErrorCode.AuthenticationTagError))
+                {
+                    ModelState.AddModelError(string.Empty, $"File '{getFileResult.Value!.Info.FileName}' has been modified and can't be decrypted.");
+                }
+                else
+                {
+                    ModelState.AddModelError(string.Empty, $"Failed to decrypt file '{getFileResult.Value!.Info.FileName}'.");
+                }
                 return View("Index", await CreateViewModel());
             }
 

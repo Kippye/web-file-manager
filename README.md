@@ -91,35 +91,26 @@ Every file operation must additionally perform server-side ownership verificatio
 
 ## Usage Instructions
 
-These instructions have only been tested on Linux.
+### HTTP-only
+
+#### On host
+
+You need to pass in an encryption key. Runs at http://localhost:5256.
+
+```bash
+dotnet run --project App/WebApp/ -e EncryptionKey=yourSuperSecretKeyWhichIs32Bytes
+```
+
+#### In Docker
+
+The default environment (Development) does not redirect HTTP to HTTPS.
+Just copy `.env.example` to `.env`, change the `EncryptionKey` if you want, [launch](#launch), and use the HTTP endpoint.
 
 ### Generate TLS development certificate
 
-#### Helper scripts (optional)
-
-Linux:
-
-```
-certgen.sh <password>
-```
-
-Creates a certificate at ./cert/WebApp.pfx.
-
-Windows (untested):
-
-```
-certgen.bat <password>
-```
-
-Creates a certificate at cert\WebApp.pfx.
-
-After generating, you can complete only step 3 below (but the certificate will be untrusted).
-
-#### Manual
-
 1. Install the [.NET SDK](https://dotnet.microsoft.com/en-us/download/dotnet/10.0) (>= 10.0 should be fine).
 
-2. Create a development certificate and trust it - replace `/path-to-cert/` with the output path and `SomePass` with a password:
+2. Create a development certificate and trust it - replace `/path-to-cert/WebApp.pfx` with the output path and `SomePass` with a password:
 
 ```bash
 dotnet dev-certs https -ep /path-to-cert/WebApp.pfx -p SomePass && dotnet dev-certs https --trust
@@ -130,6 +121,10 @@ dotnet dev-certs https -ep /path-to-cert/WebApp.pfx -p SomePass && dotnet dev-ce
 - `CERTIFICATE_DIR`=_/path-to-cert_
 - `CERTIFICATE_NAME`=_WebApp.pfx_
 - `CERTIFICATE_PASSWORD`=_SomePass_
+
+Optionally set:
+
+- `ASPNETCORE_ENVIRONMENT`=Production
 
 ### Launch
 
