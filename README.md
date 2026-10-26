@@ -104,7 +104,12 @@ dotnet run --project App/WebApp/ -e EncryptionKey=yourSuperSecretKeyWhichIs32Byt
 #### In Docker
 
 The default environment (Development) does not redirect HTTP to HTTPS.
-Just copy `.env.example` to `.env`, change the `EncryptionKey` if you want, [launch](#launch), and use the HTTP endpoint.
+You can do the following:
+
+1. Copy `.env.example` to `.env`
+2. Set `CERTIFICATE_DIR` to some existing (empty) directory
+3. Change the `EncryptionKey` if you want
+4. [Launch](#launch), and use the HTTP endpoint
 
 ### Generate TLS development certificate
 
