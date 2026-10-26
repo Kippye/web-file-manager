@@ -10,6 +10,7 @@ riderModule.iml
 *.key
 *.crt
 *.pem
+PROGRESS.md
 
 # Custom stuff
 

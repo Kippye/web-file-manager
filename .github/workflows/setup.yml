@@ -7,7 +7,7 @@ on:
 
 jobs:
   http-windows-local:
-    name: Run HTTP-only on host
+    name: Run HTTP-only on host (Windows)
     runs-on: windows-latest
 
     env:
@@ -62,8 +62,54 @@ jobs:
               }
           }
 
+  http-ubuntu-local:
+    name: Run HTTP-only on host (Ubuntu)
+    runs-on: ubuntu-latest
+
+    env:
+      EncryptionKey: ${{ secrets.ENCRYPTION_KEY }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run app and verify startup
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ENDPOINT="http://localhost:5256"
+          TIMEOUT=60
+
+          dotnet run --project App/WebApp/ -e EncryptionKey=$EncryptionKey" > app.log 2>&1 &
+          APP_PID=$!
+
+          cleanup() {
+            kill "$APP_PID" 2>/dev/null || true
+            wait "$APP_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          for ((i = 0; i < TIMEOUT; i++)); do
+            if ! kill -0 "$APP_PID" 2>/dev/null; then
+              echo "Application exited before becoming healthy."
+              cat app.log
+              exit 1
+            fi
+
+            if curl --insecure --fail --silent --show-error "$ENDPOINT" >/dev/null 2>&1; then
+              echo "Application is healthy at $ENDPOINT"
+              exit 0
+            fi
+
+            sleep 1
+          done
+
+          echo "Application did not become healthy within $TIMEOUT seconds."
+          cat app.log
+          exit 1
+
   http-windows-docker:
-    name: Run HTTP-only on Docker
+    name: Run HTTP-only on Docker (Windows)
     runs-on: windows-latest
 
     env:
@@ -99,4 +145,41 @@ jobs:
       - name: Stop and remove services
         if: always()
         shell: pwsh
+        run: docker compose down --volumes --remove-orphans
+
+  http-ubuntu-docker:
+    name: Run HTTP-only on Docker (Ubuntu)
+    runs-on: ubuntu-latest
+
+    env:
+      EncryptionKey: ${{ secrets.ENCRYPTION_KEY }}
+      CERTIFICATE_PASSWORD: ${{ secrets.HTTPS_CERT_PASSWORD }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create unused cert directory
+        shell: bash
+        run: mkdir -p cert
+
+      - name: Create .env file
+        shell: bash
+        run: |
+          echo "EncryptionKey=$env:EncryptionKey
+          CERTIFICATE_PASSWORD=$env:CERTIFICATE_PASSWORD
+          CERTIFICATE_DIR=./cert
+          CERTIFICATE_NAME=None" > .env
+
+      - name: Start services and verify startup
+        shell: bash
+        run: docker compose up --build --wait --wait-timeout 90
+
+      - name: Show logs on failure
+        if: failure()
+        shell: bash
+        run: docker compose logs --no-color
+
+      - name: Stop and remove services
+        if: always()
+        shell: bash
         run: docker compose down --volumes --remove-orphans
