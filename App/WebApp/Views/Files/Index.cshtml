@@ -1,43 +1,37 @@
-﻿@using System.Reflection
-@using Microsoft.CodeAnalysis.CSharp.Syntax
+﻿@using Application.Base
 @model IEnumerable<WebApp.Models.FileInfoViewModel>
 @{
     ViewData["Title"] = "Files";
 
-    (string, string) GetIconAndNameForMimeType(string mimeType)
+    (string, string) GetFileTypeIconAndName(string filename, string mimeType)
     {
-        string category = mimeType.Split("/")[0];
-
-        switch (mimeType)
-        {
-            case ("application/pdf"):
-                return ("file-earmark-pdf.svg", "PDF");
-            case ("application/msword"):
-            case ("application/vnd.openxmlformats-officedocument.wordprocessingml.document"):
-            case ("application/vnd.oasis.opendocument.text"):
-                return ("file-earmark-richtext.svg", "Document");
-            case ("application/vnd.ms-powerpoint"):
-            case ("application/vnd.openxmlformats-officedocument.presentationml.presentation"):
-            case ("application/vnd.oasis.opendocument.presentation"):
-                return ("file-earmark-slides.svg", "Presentation");
-            case ("application/vnd.ms-excel"):
-            case ("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"):
-                return ("file-earmark-excel.svg", "Excel spreadsheet");
-            case ("application/vnd.oasis.opendocument.spreadsheet"):
-                return ("file-earmark-bar-graph.svg", "Spreadsheet");
-
-            default:
-                break;
-        }
+        FileCategory category = BaseFileValidator.GetFileCategory(filename, mimeType);
 
         switch (category)
         {
-            case ("image"):
-                return ("file-earmark-image.svg", "Image");
-            case ("audio"):
+            case FileCategory.Archive:
+                return ("file-earmark-zip.svg", "Archive");
+            case FileCategory.Audio:
                 return ("file-earmark-music.svg", "Audio");
-            case ("video"):
+            case FileCategory.Binary:
+                return ("file-earmark-binary.svg", "Binary");
+            case FileCategory.Code:
+                return ("file-earmark-code.svg", "Code");
+            case FileCategory.Document:
+                return ("file-earmark-richtext.svg", "Document");
+            case FileCategory.Image:
+                return ("file-earmark-image.svg", "Image");
+            case FileCategory.PDF:
+                return ("file-earmark-pdf.svg", "PDF");
+            case FileCategory.Presentation:
+                return ("file-earmark-slides.svg", "Presentation");
+            case FileCategory.Spreadsheet:
+                return ("file-earmark-bar-graph.svg", "Spreadsheet");
+            case FileCategory.Text:
+                return ("file-earmark-text.svg", "Text");
+            case FileCategory.Video:
                 return ("file-earmark-play.svg", "Video");
+
             default:
                 return ("file-earmark.svg", "File");
         }
@@ -69,7 +63,7 @@
         <tbody>
             @foreach (var fileInfo in Model)
             {
-                (string iconFile, string fileTypeName) = GetIconAndNameForMimeType(fileInfo.ContentType);
+                (string iconFile, string fileTypeName) = GetFileTypeIconAndName(fileInfo.FileName, fileInfo.ContentType);
                 <tr>
                     <td class="filename">
                         <div class="row gx-1 flex-nowrap">

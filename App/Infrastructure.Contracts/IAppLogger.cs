@@ -76,6 +76,14 @@ public interface IAppLogger<TCategoryName>
     /// Formats and writes a warning log message.
     /// </summary>
     /// <param name="eventId"></param>
+    /// <param name="message"></param>
+    /// <param name="args"></param>
+    void LogWarning(EventId eventId, string? message, params object?[] args);
+
+    /// <summary>
+    /// Formats and writes a warning log message.
+    /// </summary>
+    /// <param name="eventId"></param>
     /// <param name="outcome"></param>
     /// <param name="message"></param>
     /// <param name="args"></param>

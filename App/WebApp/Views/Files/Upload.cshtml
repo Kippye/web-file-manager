@@ -1,4 +1,5 @@
-﻿@model WebApp.Models.FileUploadViewModel
+﻿@using Application.Base
+@model WebApp.Models.FileUploadViewModel
 @{
     ViewData["Title"] = "Upload";
 }
@@ -15,7 +16,7 @@
 
                     <div class="form-group">
                         <label asp-for="Files" class="control-label"></label>
-                        <input asp-for="Files" class="form-control" />
+                        <input asp-for="Files" class="form-control" accept="@BaseFileValidator.CreateAcceptString()" />
                         <span asp-validation-for="Files" class="text-danger"></span>
                     </div>
                     <br />

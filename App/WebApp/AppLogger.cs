@@ -48,6 +48,12 @@ public class AppLogger<TCategoryName>() : IAppLogger<TCategoryName>
         Log(LogLevel.Information, eventId, outcome, exception: null, message, args);
     }
 
+    public void LogWarning(EventId eventId, string? message, params object?[] args)
+    {
+        Log(LogLevel.Warning, eventId, outcome: null, exception: null, message, args);
+    }
+
+
     public void LogWarning(EventId eventId, EventOutcome? outcome, string? message, params object?[] args)
     {
         Log(LogLevel.Warning, eventId, outcome, exception: null, message, args);
