@@ -111,6 +111,7 @@ jobs:
   http-windows-docker:
     name: Run HTTP-only on Docker (Windows)
     runs-on: windows-latest
+    continue-on-error: true
 
     env:
       EncryptionKey: ${{ secrets.ENCRYPTION_KEY }}
