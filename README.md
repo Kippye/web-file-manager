@@ -98,7 +98,7 @@ Every file operation must additionally perform server-side ownership verificatio
 You need to pass in an encryption key. Runs at http://localhost:5256.
 
 ```bash
-dotnet run --project App/WebApp/ -e EncryptionKey=yourSuperSecretKeyWhichIs32Bytes
+dotnet run --project App/WebApp/ -e EncryptionKey="example32byteBASE64keyWhichIsValidButPublic="
 ```
 
 #### In Docker

@@ -1,5 +1,4 @@
 using System.Security.Cryptography;
-using System.Text;
 using Application.Contracts;
 using DTO;
 using Infrastructure.Contracts;
@@ -13,11 +12,30 @@ public class FileEncryptionService(IConfiguration configuration, IAppLogger<File
     private static readonly EventId EncryptFileEvent = new(100, "File encrypted");
     private static readonly EventId DecryptFileEvent = new(101, "File decrypted");
 
-    private string? Key { get => configuration.GetValue<string>("EncryptionKey"); }
+    private static readonly uint KEY_SIZE_BYTES = 32u;
 
-    private bool IsKeyValid(string? key)
+    private Result<byte[]> GetKey()
     {
-        return key is not null && key.Length >= 32;
+        string? strUtf8 = configuration.GetValue<string>("EncryptionKey");
+
+        if (strUtf8 is null)
+        {
+            return Result<byte[]>.Failure(EApplicationErrorCode.ResourceNotFound, "Missing encryption key");
+        }
+
+        try
+        {
+            byte[] keyBytes = Convert.FromBase64String(strUtf8);
+            if (keyBytes.Length != KEY_SIZE_BYTES)
+            {
+                return Result<byte[]>.Failure(EApplicationErrorCode.ValueOutOfRange, $"Invalid key size: {keyBytes.Length} (should be {KEY_SIZE_BYTES} bytes)");
+            }
+            return Result.Success(keyBytes);
+        }
+        catch (FormatException)
+        {
+            return Result<byte[]>.Failure(EApplicationErrorCode.ValidationError, "Invalid key format");
+        }
     }
 
     public async Task<Result<EncryptedFile>> EncryptAsync(byte[] content)
@@ -33,14 +51,13 @@ public class FileEncryptionService(IConfiguration configuration, IAppLogger<File
             );
             return GetGenericFailure(EApplicationErrorCode.InvalidOperation);
         }
-        string? key = Key;
-        if (!IsKeyValid(key))
+        Result<byte[]> keyResult = GetKey();
+        if (!keyResult.IsSuccess)
         {
             logger.LogCritical(
                 EncryptFileEvent,
                 EventOutcome.Failure,
-                key is null ? "Missing encryption key"
-                : "The encryption key is too short. It must be 32 bytes or longer"
+                keyResult.Errors.First().Message
             );
             return GetGenericFailure(EApplicationErrorCode.CryptographyError);
         }
@@ -56,7 +73,7 @@ public class FileEncryptionService(IConfiguration configuration, IAppLogger<File
 
         try
         {
-            var aesGcm = new AesGcm(Encoding.UTF8.GetBytes(key!), tagSize);
+            var aesGcm = new AesGcm(keyResult.Value!, tagSize);
 
             aesGcm.Encrypt(
                 nonce: encryptedFile.Nonce,
@@ -85,20 +102,19 @@ public class FileEncryptionService(IConfiguration configuration, IAppLogger<File
         static Result<byte[]> GetGenericFailure(EApplicationErrorCode errorCode) => Result<byte[]>.Failure(errorCode, "Failed to decrypt.");
 
         var plaintext = new byte[encryptedFile.Content.Length];
-        string? key = Key;
-        if (!IsKeyValid(key))
+        Result<byte[]> keyResult = GetKey();
+        if (!keyResult.IsSuccess)
         {
             logger.LogCritical(
                 DecryptFileEvent,
                 EventOutcome.Failure,
-                key is null ? "Missing encryption key"
-                : "The encryption key is too short. It must be 32 bytes or longer"
+                keyResult.Errors.First().Message
             );
             return GetGenericFailure(EApplicationErrorCode.CryptographyError);
         }
         try
         {
-            var aesGcm = new AesGcm(Encoding.UTF8.GetBytes(key!), AesGcm.TagByteSizes.MaxSize);
+            var aesGcm = new AesGcm(keyResult.Value!, AesGcm.TagByteSizes.MaxSize);
 
             aesGcm.Decrypt(
                 nonce: encryptedFile.Nonce,
