@@ -5,6 +5,7 @@ using Infrastructure.Contracts;
 using Infrastructure.EF;
 using Infrastructure.EF.OperationProcessing;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Serilog.Formatting.Compact;
@@ -46,10 +47,32 @@ if (builder.Environment.IsDevelopment())
     builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 }
 
-builder.Services.AddScoped<LoggingAntiforgeryFilter>();
-
-builder.Services.AddDefaultIdentity<AppUser>(options => options.SignIn.RequireConfirmedAccount = true)
+// NOTE: This currently does everything that AddDefaultIdentity does
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultScheme = IdentityConstants.ApplicationScheme;
+    options.DefaultSignInScheme = IdentityConstants.ExternalScheme; // TODO: Why is this ExternalScheme?
+})
+.AddIdentityCookies();
+builder.Services.AddIdentityCore<AppUser>(options =>
+{
+    options.Stores.MaxLengthForKeys = 128;
+    options.SignIn.RequireConfirmedAccount = true;
+})
+    .AddDefaultUI()
+    .AddDefaultTokenProviders()
     .AddEntityFrameworkStores<AppDbContext>();
+// Configure cookies - shorter lifespan
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    // No "Remember me" -> Session expiration
+    // With "Remember me" -> Expire in 7 days, instead of default 14
+    options.ExpireTimeSpan = TimeSpan.FromDays(7);
+    // options.Cookie.SameSite = SameSiteMode.Strict; // Should this be set to Strict instead of default Lax?
+    // options.SlidingExpiration // Whether to extend the lifetime of valid cookies as they are used
+});
+
+builder.Services.AddScoped<LoggingAntiforgeryFilter>();
 builder.Services.AddControllersWithViews(options =>
 {
     options.Filters.AddService<LoggingAntiforgeryFilter>();
