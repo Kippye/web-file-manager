@@ -39,6 +39,7 @@
     <Folder Include="Areas/Identity/Pages/Account/" />
     <Folder Include="data/" />
     <Folder Include="logs/" />
+    <Folder Include="Views/Error/" />
     <Folder Include="Views/Files/" />
   </ItemGroup>
 
