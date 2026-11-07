@@ -5,7 +5,6 @@ using Infrastructure.Contracts;
 using Infrastructure.EF;
 using Infrastructure.EF.OperationProcessing;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Serilog.Formatting.Compact;
@@ -65,38 +64,8 @@ var app = builder.Build();
 
 app.UseSerilogRequestLogging();
 
-// TODO: Move
-using var serviceScope = app.Services
-     .GetRequiredService<IServiceScopeFactory>()
-     .CreateScope();
-
-using var context = serviceScope.ServiceProvider.GetRequiredService<AppDbContext>();
-var fileStorageService = serviceScope.ServiceProvider.GetRequiredService<IFileStorageService>();
-
-if (app.Configuration.GetValue<bool>("DataInitialization:ClearFiles"))
-{
-    Log.Warning("ClearFiles");
-    fileStorageService.DeleteAllFilesAsync().Wait();
-}
-
-if (app.Configuration.GetValue<bool>("DataInitialization:DropDatabase"))
-{
-    Log.Warning("DropDatabase");
-    context.Database.EnsureDeleted();
-}
-
-// NOTE: Only for testing (bypasses migrations to create full schema)
-if (app.Configuration.GetValue<bool>("DataInitialization:CreateDatabase"))
-{
-    Log.Information("CreateDatabase");
-    context.Database.EnsureCreated();
-}
-
-if (app.Configuration.GetValue<bool>("DataInitialization:MigrateDatabase"))
-{
-    Log.Information("MigrateDatabase");
-    context.Database.Migrate();
-}
+// Set up database and / or data based on configuration
+app.UseDataInitialization(app.Configuration);
 
 // Configure the HTTP request pipeline.
 // NOTE: HTTP is (temporarily?) allowed in Development
