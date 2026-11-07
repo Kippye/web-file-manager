@@ -58,6 +58,9 @@ builder.Services.AddIdentityCore<AppUser>(options =>
 {
     options.Stores.MaxLengthForKeys = 128;
     options.SignIn.RequireConfirmedAccount = true;
+
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(10); // Default: 5 minutes
+    options.Lockout.MaxFailedAccessAttempts = 5; // Default: 5 attempts
 })
     .AddDefaultUI()
     .AddDefaultTokenProviders()
